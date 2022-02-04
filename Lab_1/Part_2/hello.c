@@ -9,7 +9,7 @@ MODULE_DESCRIPTION("Printing out hello world on start-up and goodbye world on fi
 MODULE_VERSION("1.0");
 
 static int enableLogging = 1;
-module_param(enableLogging, int, S_IRUSR | S_IWUSR);
+module_param(enableLogging, int, S_IRUGO | S_IWUSR);
 
 static int doubleMe = 0;
 
@@ -19,8 +19,15 @@ static int double_val(const char* val, const struct kernel_param *kp)
     int ret = param_set_int(val, kp);
     if(ret == 0)
     {
+        int oldVal = doubleMe;
         doubleMe *= 2;
+        if(enableLogging)
+        {
+            printk(KERN_INFO "Initial Value: %d Doubled Value: %d \n", oldVal, doubleMe);
+        }
+
     }
+    printk(KERN_INFO "bad");
     return EINVAL;
 }
 
