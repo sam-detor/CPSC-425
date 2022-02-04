@@ -1,6 +1,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
-#inclide <linux/moduleparam.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 
 MODULE_LICENSE("GPL");
@@ -12,32 +12,28 @@ static int enableLogging = 1;
 module_param(enableLogging, int, S_IRUSR | S_IWUSR);
 
 static int doubleMe = 0;
-module_param_cb(doubleMe, int, S_IRUSR | S_IWUSR);
+
 
 static int double_val(const char* val, const struct kernel_param *kp)
 {
     int ret = param_set_int(val, kp);
     if(ret == 0)
     {
-        int newValue = doubleMe * 2;
-        int ret2 = param_set_int(newValue, kp);
-        if(ret2 == 0)
-        {
-            return 0;
-        }
-        return -1;
+        doubleMe *= 2;
     }
     return EINVAL;
 }
 
 const struct kernel_param_ops doubleMe_ops = 
 {
-    .set = &double_val;
-    .get = param_get_int;
-}
+    .set = &double_val,
+    .get = param_get_int,
+};
+
+module_param_cb(doubleMe, &doubleMe_ops, &doubleMe, S_IRUSR | S_IWUSR);
+
 static int __init helloWord(void)
 {
-    struct k_object* loggingDir = k_object_create_and_add("enable_logging", )
     if(enableLogging)
     {
         printk(KERN_INFO "Hello, World!\n");
