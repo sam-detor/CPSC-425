@@ -12,7 +12,7 @@ MODULE_DESCRIPTION("This module prints out hello world on start-up and goodbye w
 MODULE_VERSION("1.0");
 
 static int enable_logging = 1;
-module_param(enable_logging, int, S_IRUGO | S_IWUSR); //creates the enable logging module parameter with user read/write permissions
+module_param(enable_logging, int, S_IRUGO | S_IWUSR); //creates the enable logging module parameter with global read/ user write permissions
 
 static int double_me = 0;
 
