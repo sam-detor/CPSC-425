@@ -7,7 +7,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sam Detor");
 MODULE_DESCRIPTION("This module prints out hello world on start-up and goodbye world on finishing depending on the state of the"
                     "enable_logging parameter. It also doubles the parameter double_me when it is changed by the user. See lab"
-                    "for sources.");
+                    "report for sources.");
                     
 MODULE_VERSION("1.0");
 
