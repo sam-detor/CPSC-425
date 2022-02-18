@@ -15,7 +15,7 @@ MODULE_VERSION("1.0");
 char* deviceName = "mymem";
 dev_t devNums;
 unsigned int count = 1;
-
+/*
 struct file_operations memManager_fops = 
 {
     .owner = THIS_MODULE,
@@ -26,9 +26,10 @@ struct file_operations memManager_fops =
     .open = local_open,
     .close = local_close,
 }
-
+*/
 struct cdev* my_cdev;
 static struct class *myClass;
+static struct device *myDev;
 
 
 static int __init memManagerInit(void) //the initialization method that runs when the module is loaded into the kernel
@@ -44,10 +45,10 @@ static int __init memManagerInit(void) //the initialization method that runs whe
         unregister_chrdev_region(devNums, count);
         return -1;
     }
-    ret = device_create(myClass, NULL, devNums, NULL, "mymem");
-    if(ret == NULL)
+    myDev = device_create(myClass, NULL, devNums, NULL, "mymem");
+    if(myDev == NULL)
     {
-        class_destroy(myClass)
+        class_destroy(myClass);
         unregister_chrdev_region(devNums, count);
         return -1;
     }
