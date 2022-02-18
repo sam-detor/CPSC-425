@@ -5,6 +5,12 @@
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/kdev_t.h>
+#include <asm/uacess.h>
+#include <linux/ioctl.h>
+
+#define MYMEM_IOCTL_ALLOC (0)
+#define MYMEM_IOCTL_FREE (1)
+#define MYMEM_IOCTL_SETREGION (2)
 
 struct region
 {

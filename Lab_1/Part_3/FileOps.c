@@ -23,7 +23,7 @@ int local_close(struct inode* inode, struct file flip)
     return 0;
 }
 
-ssize_t local_read (struct file flip, const char _ _user *buff, size_t count, loff_t *offp)
+ssize_t local_read (struct file* flip, const char _ _user *buff, size_t count, loff_t *offp)
 {
     if(count != 1)
     {
@@ -47,7 +47,7 @@ ssize_t local_read (struct file flip, const char _ _user *buff, size_t count, lo
     return count;
 }
 
-ssize_t local_write (struct file flip, const char _ _user *buff, size_t count, loff_t *offp)
+ssize_t local_write (struct file* flip, const char _ _user *buff, size_t count, loff_t *offp)
 {
     if(count != 1)
     {
@@ -71,4 +71,60 @@ ssize_t local_write (struct file flip, const char _ _user *buff, size_t count, l
     return count;  
     
 }
+
+local_llseek(struct file * flip, loff_t off, int whence)
+{
+    struct region* data_region = (flip->private_data)->current_region;
+    loff_t newPos;
+
+    switch(whence)
+    {
+        case 0: 
+        newPos = off;
+        break;
+
+        case 1:
+        newPos = data_region->offset + off;
+        break
+
+        case 2:
+        newPos = data_region->region_size + off;
+
+        default:
+        return -EINVAL;
+    }
+
+    if(newPos > 0 && newPos <= data_region->region_size)
+    {
+        flip->f_pos = newPos;
+        data_region->offset = newPos;
+        return newPos;
+
+    }
+    else
+    {
+        return -EINVAL
+    }
+}
+
+int local_ioctl(struct file* filp, unisgned int cmd, unsigned long arg)
+{
+    switch(cmd)
+    {
+        case MYMEM_IOCTL_ALLOC:
+        struct region* new_region = kmalloc(sizeof(struct region), GFP_KERNEL);
+        
+        break;
+
+        case MYMEM_IOCTL_FREE:
+        break;
+        
+        case MYMEM_IOCTL_SETREGION:
+        break:
+
+        default:
+        return -ENOTTY;
+
+    }
+} 
 
