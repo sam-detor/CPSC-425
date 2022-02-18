@@ -1,10 +1,4 @@
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/kdev_t.h>
+#include "MemManager.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sam Detor");
@@ -15,7 +9,7 @@ MODULE_VERSION("1.0");
 char* deviceName = "mymem";
 dev_t devNums;
 unsigned int count = 1;
-/*
+
 struct file_operations memManager_fops = 
 {
     .owner = THIS_MODULE,
@@ -26,8 +20,9 @@ struct file_operations memManager_fops =
     .open = local_open,
     .close = local_close,
 }
-*/
-struct cdev* my_cdev;
+
+memManagerStructure mymem;
+
 static struct class *myClass;
 static struct device *myDev;
 
@@ -53,14 +48,18 @@ static int __init memManagerInit(void) //the initialization method that runs whe
         return -1;
     }
 
-    /*my_cdev = cdev_alloc();
+    cdev_init(&mymem->my_cdev, &memManager_fops);
     my_cdev->ops = &memManager_fops;
     my_cdev->owner = THIS_MODULE;
-    ret = cdev_add
+    ret = cdev_add(&mymem->my_cdev, devNums, count);
     if(ret < 0)
     {
+        cdev_del(&mymem->my_cdev);
+        device_destroy(myClass,devNums);
+        class_destroy(myClass);
+        unregister_chrdev_region(devNums,count);
         return ret;
-    }*/
+    }*
 
 
     return 0;
@@ -68,6 +67,7 @@ static int __init memManagerInit(void) //the initialization method that runs whe
 
 static void __exit memManagerExit(void) //the method that runs when the module is removed from the kernel.
 {
+    cdev_del(&mymem->my_cdev);
     device_destroy(myClass,devNums);
     class_destroy(myClass);
     unregister_chrdev_region(devNums,count);
