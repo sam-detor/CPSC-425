@@ -19,7 +19,8 @@ int main()
     }
     for(i = 0; i< 10; i++)
     {
-        read(fd, &(string[i]), 1);
+        read(fd, &mychar, 1);
+        printf("%c", myChar);
     }
     int ret = close(fd);
     printf("close return val: %d", ret);
