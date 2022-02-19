@@ -14,19 +14,22 @@ static int nextID = 0;
 
 int local_open (struct inode *inode, struct file *filp)
 {
-    struct myMem_struct* dev = container_of(inode->i_cdev, struct myMem_struct, my_cdev);
-    filp->private_data = dev;
+    //struct myMem_struct* dev = container_of(inode->i_cdev, struct myMem_struct, my_cdev);
+    //filp->private_data = dev;
+    printk(KERN_INFO "open!");
     return 0;
 }
 
 int local_close(struct inode* inode, struct file* filp)
 {
     // also has to deallocate what was allocated in filp->private data
+    printk(KERN_INFO "close!");
     return 0;
 }
 
 ssize_t local_read (struct file* filp, char __user *buff, size_t count, loff_t *offp)
 {
+    /*
     struct myMem_struct* dev = (filp->private_data);
     struct region* data_region = dev->current_region;
     char byteToRead;
@@ -59,6 +62,9 @@ ssize_t local_read (struct file* filp, char __user *buff, size_t count, loff_t *
     data_region->offset += count;
 
     return count;
+    */
+    printk(KERN_INFO "read!");
+    return 1;
 }
 
 ssize_t local_write (struct file* filp, const char __user *buff, size_t count, loff_t *offp)
