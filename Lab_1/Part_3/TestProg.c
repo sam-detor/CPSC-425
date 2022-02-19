@@ -11,7 +11,7 @@ int main()
     int fd = open("/dev/mymem", O_RDWR);
     char[10] string = "helloWorld"
     char myChar;
-    printf("file descriptor %d", fd);
+    printf("file descriptor %d\n", fd);
     ioctl(fd,0,10);
     for(i = 0; i< 10; i++)
     {
@@ -23,5 +23,6 @@ int main()
         printf("%c", myChar);
     }
     int ret = close(fd);
-    printf("close return val: %d", ret);
+    printf("\n");
+    printf("close return val: %d\n", ret);
 }
