@@ -14,22 +14,37 @@ static int nextID = 0;
 
 int local_open (struct inode *inode, struct file *filp)
 {
-    //struct myMem_struct* dev = container_of(inode->i_cdev, struct myMem_struct, my_cdev);
-    //filp->private_data = dev;
-    printk(KERN_INFO "open!");
+    struct myMem_struct* dev = container_of(inode->i_cdev, struct myMem_struct, my_cdev);
+    filp->private_data = dev;
     return 0;
 }
 
 int local_close(struct inode* inode, struct file* filp)
 {
     // also has to deallocate what was allocated in filp->private data
+    struct myMem_struct* dev = (struct myMem_struct*) filp->private_data;
+    struct region* head = dev->data_region;
+    struct region* temp;
+    dev->data_region = NULL;
+    dev->current_region = NULL;
+    dev->current_region_number = 0;
+    nextID = 0;
+    dev->bytes_allocated = 0;
+
+    while(head != NULL)
+    {
+        temp = head->next;
+        kfree(head->data);
+        kfree(head);
+        head = temp;
+    }
     printk(KERN_INFO "close!");
     return 0;
 }
 
 ssize_t local_read (struct file* filp, char __user *buff, size_t count, loff_t *offp)
 {
-    /*
+
     struct myMem_struct* dev = (filp->private_data);
     struct region* data_region = dev->current_region;
     char byteToRead;
@@ -62,9 +77,6 @@ ssize_t local_read (struct file* filp, char __user *buff, size_t count, loff_t *
     data_region->offset += count;
 
     return count;
-    */
-    printk(KERN_INFO "read!");
-    return 1;
 }
 
 ssize_t local_write (struct file* filp, const char __user *buff, size_t count, loff_t *offp)
@@ -200,6 +212,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         
         temp = head;
         regionNum = (int)arg;
+        temp_prev = NULL;
         while(temp != NULL && temp->region_number != regionNum)
         {
             temp_prev = temp;
@@ -209,14 +222,39 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         {
             return -EINVAL;
         }
-        temp_prev->next = temp->next;
+        if(temp_prev == NULL)
+        {
+            dev->data_region = temp->next;
+        }
+        else
+        {
+            temp_prev->next = temp->next;
+        }
         dev->bytes_allocated -= temp->region_size;
         kfree(temp->data); 
+        kfree(temp);
         return 0;
         break;
         
         case MYMEM_IOCTL_SETREGION:
-        return -ENOTTY;
+        regionNum = (int)arg
+        if(regionNum == dev->current_region_number)
+        {
+            return 0;
+        }
+
+        temp = head;
+        while(temp != NULL && temp->region_number != regionNum)
+        {
+            temp = temp->next;
+        } 
+        if(temp == NULL)
+        {
+            return -EINVAL;
+        }
+        dev->current_region = temp;
+        dev->current_region_number = regionNum;
+        return 0;
         break;
 
         default:

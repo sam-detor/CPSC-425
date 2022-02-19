@@ -8,8 +8,19 @@
 
 int main()
 {
-    int fd = syscall(SYS_open, "/dev/mymem", O_RDWR);
+    int fd = open("/dev/mymem", O_RDWR);
+    char[10] string = "helloWorld"
+    char myChar;
     printf("file descriptor %d", fd);
-    int ret = syscall(SYS_close, fd);
+    ioctl(fd,0,10);
+    for(i = 0; i< 10; i++)
+    {
+        write(fd, &(string[i]), 1);
+    }
+    for(i = 0; i< 10; i++)
+    {
+        read(fd, &(string[i]), 1);
+    }
+    int ret = close(fd);
     printf("close return val: %d", ret);
 }
