@@ -16,12 +16,12 @@ struct file_operations memManager_fops =
     .llseek = local_llseek,
     .read = local_read,
     .write = local_write,
-    .ioctl = local_ioctl,
+    .unlocked_ioctl = local_ioctl,
     .open = local_open,
-    .close = local_close,
-}
+    .release = local_close,
+};
 
-memManagerStructure mymem;
+struct myMem_struct mymem;
 
 static struct class *myClass;
 static struct device *myDev;
@@ -35,10 +35,23 @@ static int __init memManagerInit(void) //the initialization method that runs whe
         printk(KERN_INFO "unable to allocate region");
         return ret;
     }
+
+    cdev_init(&(mymem.my_cdev), &memManager_fops);
+    mymem.my_cdev.ops = &memManager_fops;
+    mymem.my_cdev.owner = THIS_MODULE;
+    ret = cdev_add(&(mymem.my_cdev), devNums, count);
+    if(ret < 0)
+    {
+        printk(KERN_INFO "unable to create the add cdev");
+        unregister_chrdev_region(devNums, count);
+        return ret;
+    }
+
     myClass = class_create(THIS_MODULE,"mymem_class");
     if(myClass == NULL)
     {
         printk(KERN_INFO "unable to create the class");
+        cdev_del(&(mymem.my_cdev));
         unregister_chrdev_region(devNums, count);
         return -1;
     }
@@ -47,31 +60,17 @@ static int __init memManagerInit(void) //the initialization method that runs whe
     {
         printk(KERN_INFO "unable to create device");
         class_destroy(myClass);
+        cdev_del(&(mymem.my_cdev));
         unregister_chrdev_region(devNums, count);
         return -1;
     }
-
-    cdev_init(&(mymem->my_cdev), &memManager_fops);
-    my_cdev->ops = &memManager_fops;
-    my_cdev->owner = THIS_MODULE;
-    ret = cdev_add(&mymem->my_cdev, devNums, count);
-    if(ret < 0)
-    {
-        printk(KERN_INFO "unable to add device");
-        cdev_del(&mymem->my_cdev);
-        device_destroy(myClass,devNums);
-        class_destroy(myClass);
-        unregister_chrdev_region(devNums,count);
-        return ret;
-    }*
-
 
     return 0;
 }
 
 static void __exit memManagerExit(void) //the method that runs when the module is removed from the kernel.
 {
-    cdev_del(&mymem->my_cdev);
+    cdev_del(&(mymem.my_cdev));
     device_destroy(myClass,devNums);
     class_destroy(myClass);
     unregister_chrdev_region(devNums,count);

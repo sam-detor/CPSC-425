@@ -19,7 +19,7 @@ int local_open (struct inode *inode, struct file *filp)
     return 0;
 }
 
-int local_close(struct inode* inode, struct file filp)
+int local_close(struct inode* inode, struct file* filp)
 {
     // also has to deallocate what was allocated in filp->private data
     return 0;
@@ -130,7 +130,7 @@ loff_t local_llseek(struct file * filp, loff_t off, int whence)
     }
 }
 
-int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
+long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
 {
     struct myMem_struct* dev = filp->private_data;
     struct region* head = dev->data_region;

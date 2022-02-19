@@ -1,5 +1,5 @@
-obj-m += MemManager.o
-MemManager-objs += FileOps.o MemManager.h
+obj-m += myMod.o
+myMod-objs := MemManager.o FileOps.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

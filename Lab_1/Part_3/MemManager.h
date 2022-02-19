@@ -36,3 +36,8 @@ struct myMem_struct
 
 
 int local_open (struct inode *inode, struct file *flip);
+int local_close(struct inode* inode, struct file *filp);
+ssize_t local_read (struct file* filp, char __user *buff, size_t count, loff_t *offp);
+ssize_t local_write (struct file* filp, const char __user *buff, size_t count, loff_t *offp);
+loff_t local_llseek(struct file * filp, loff_t off, int whence);
+long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg);
