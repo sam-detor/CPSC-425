@@ -32,28 +32,32 @@ static int __init memManagerInit(void) //the initialization method that runs whe
     int ret = alloc_chrdev_region(&devNums, 0, count, deviceName);
     if(ret < 0)
     {
+        printk(KERN_INFO "unable to allocate region");
         return ret;
     }
     myClass = class_create(THIS_MODULE,"mymem_class");
     if(myClass == NULL)
     {
+        printk(KERN_INFO "unable to create the class");
         unregister_chrdev_region(devNums, count);
         return -1;
     }
     myDev = device_create(myClass, NULL, devNums, NULL, "mymem");
     if(myDev == NULL)
     {
+        printk(KERN_INFO "unable to create device");
         class_destroy(myClass);
         unregister_chrdev_region(devNums, count);
         return -1;
     }
 
-    cdev_init(&mymem->my_cdev, &memManager_fops);
+    cdev_init(&(mymem->my_cdev), &memManager_fops);
     my_cdev->ops = &memManager_fops;
     my_cdev->owner = THIS_MODULE;
     ret = cdev_add(&mymem->my_cdev, devNums, count);
     if(ret < 0)
     {
+        printk(KERN_INFO "unable to add device");
         cdev_del(&mymem->my_cdev);
         device_destroy(myClass,devNums);
         class_destroy(myClass);
