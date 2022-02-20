@@ -14,6 +14,21 @@ local_close,
 
 static int nextID = 0;
 
+void addToRegionList(int id, int size)
+{
+    if(regionsAllocated >= dataRegionsSize)
+    {
+        newptr = kmalloc(sizeof(struct region_report) * (dataRegionsSize * 2), GPL_KERNEL);
+        memcpy(newptr,dataRegions,sizeof(struct region_report) * dataRegionsSize);
+        kfree(dataRegions);
+        dataRegions = newptr;
+        dataRegionsSize *= 2;
+    }
+    dataRegions[regionsAllocated].id = id;
+    dataRegions[regionsAllocated].size = size;
+    regionsAllocated++;
+}
+
 int local_open (struct inode *inode, struct file *filp)
 {
     struct myMem_struct* dev = container_of(inode->i_cdev, struct myMem_struct, my_cdev);
@@ -27,19 +42,23 @@ int local_close(struct inode* inode, struct file* filp)
     struct myMem_struct* dev = (struct myMem_struct*) filp->private_data;
     struct region* head = dev->data_region;
     struct region* temp;
+    int i = 0;
     dev->data_region = NULL;
     dev->current_region = NULL;
     dev->current_region_number = 0;
     nextID = 0;
     dev->bytes_allocated = 0;
-
+    param_bytes_allocated = 0;
     while(head != NULL)
     {
         temp = head->next;
         kfree(head->data);
         kfree(head);
         head = temp;
+        kfree(dataRegions[i]);
+        i++;
     }
+    dataRegions = NULL;
     printk(KERN_INFO "close!");
     return 0;
 }
@@ -165,6 +184,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
     int my_arg;
     unsigned int regionNum;
     int ret;
+    struct region_report* newRegionReport;
     ret = copy_from_user(&my_arg, (int*)arg, sizeof(my_arg));
     if(ret <0)
     {
@@ -204,6 +224,8 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
             new_region->data = allocated_data;
             new_region->region_size = (unsigned int)my_arg;
             dev->bytes_allocated = (unsigned int)my_arg;
+            param_bytes_allocated = my_arg;
+            dataRegions = new_region; 
             return 0;
         }
         
@@ -219,6 +241,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         new_region->data = allocated_data;
         new_region->region_size = (unsigned int)my_arg;
         dev->bytes_allocated += (unsigned int)my_arg;
+        param_bytes_allocated += my_arg;
         return new_region->region_number;
         break;
 
@@ -239,12 +262,14 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         if(temp_prev == NULL)
         {
             dev->data_region = temp->next;
+            dataRegions = temp->next;
         }
         else
         {
             temp_prev->next = temp->next;
         }
         dev->bytes_allocated -= temp->region_size;
+        param_bytes_allocated -= temp->region_size;
         kfree(temp->data); 
         kfree(temp);
         return 0;
@@ -280,4 +305,25 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
 
     }
 } 
+
+ssize_t sysfs_show(struct kobject *kobj, struct kobj_attribute * attr, char* buf)
+{
+    struct region* temp = dataRegions;
+    int i = 0;
+    char* myStr = kmalloc(50, GFP_KERNEL);
+    int size = 0;
+    int add = 0;
+    while(temp != NULL)
+    {
+        size = sprintf(myStr,"id: %d, size: %d\n", temp->region_number, temp->region_size);
+        sprintf(buf + add, myStr);
+        add += size;
+    }
+    return add;
+}
+
+ssize_t sysfs_store(struct kobject *kobj, struct kobj_attribute * attr, char* buf)
+{
+    return 0;
+}
 

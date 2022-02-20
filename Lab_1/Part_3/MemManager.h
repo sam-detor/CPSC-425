@@ -12,6 +12,16 @@
 
 #define MAX_MEM (1048576)
 
+int param_bytes_allocated = 0;
+
+struct region_report
+{
+    int id;
+    int size;
+};
+
+struct region* dataRegions = NULL;
+
 struct region
 {
     char* data;

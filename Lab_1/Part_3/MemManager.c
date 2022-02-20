@@ -6,9 +6,15 @@ MODULE_DESCRIPTION("1 byte memory manager. See lab report for sources");
                     
 MODULE_VERSION("1.0");
 
+module_param(param_bytes_allocated, int, S_IRUGO);
+module_param_array(dataRegions,struct region_report,dataRegionsSize,S_IRUGO);
+
+
 char* deviceName = "mymem";
 dev_t devNums;
 unsigned int count = 1;
+struct kobject *kobj_ref;
+volatile int param_val;
 
 struct file_operations memManager_fops = 
 {
@@ -25,6 +31,8 @@ struct myMem_struct mymem;
 
 static struct class *myClass;
 static struct device *myDev;
+
+
 
 
 static int __init memManagerInit(void) //the initialization method that runs when the module is loaded into the kernel
@@ -65,11 +73,21 @@ static int __init memManagerInit(void) //the initialization method that runs whe
         return -1;
     }
 
+    dataRegions = kmalloc(sizeof(struct region_report) * 10);
+    dataRegionsSize = 10;
+    if(dataRegions == NULL)
+    {
+        return -1;
+    }
+
+    kobj_ref =
+
     return 0;
 }
 
 static void __exit memManagerExit(void) //the method that runs when the module is removed from the kernel.
 {
+    kfree(dataRegions);
     cdev_del(&(mymem.my_cdev));
     device_destroy(myClass,devNums);
     class_destroy(myClass);
