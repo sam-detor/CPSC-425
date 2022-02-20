@@ -12,27 +12,21 @@ local_open,
 local_close,
 */
 
-static int nextID = 0;
+
+
+
+int nextID = 0;
 int param_bytes_allocated = 0;
 struct region* dataRegions = NULL;
 
+EXPORT_SYMBOL(local_llseek);
+EXPORT_SYMBOL(local_ioctl);
+EXPORT_SYMBOL(local_open);
+EXPORT_SYMBOL(local_close);
+EXPORT_SYMBOL(nextID);
+EXPORT_SYMBOL(param_bytes_allocated);
+EXPORT_SYMBOL(dataRegions);
 
-/*
-void addToRegionList(int id, int size)
-{
-    if(regionsAllocated >= dataRegionsSize)
-    {
-        newptr = kmalloc(sizeof(struct region_report) * (dataRegionsSize * 2), GPL_KERNEL);
-        memcpy(newptr,dataRegions,sizeof(struct region_report) * dataRegionsSize);
-        kfree(dataRegions);
-        dataRegions = newptr;
-        dataRegionsSize *= 2;
-    }
-    dataRegions[regionsAllocated].id = id;
-    dataRegions[regionsAllocated].size = size;
-    regionsAllocated++;
-}
-*/
 
 int local_open (struct inode *inode, struct file *filp)
 {

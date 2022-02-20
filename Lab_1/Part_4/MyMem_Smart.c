@@ -1,4 +1,4 @@
-#include "MemManager.h"
+#include "MyMem_Smart.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sam Detor");
@@ -6,20 +6,20 @@ MODULE_DESCRIPTION("1 byte memory manager. See lab report for sources");
                     
 MODULE_VERSION("1.0");
 
+int param_bytes_allocated;
 module_param(param_bytes_allocated, int, S_IRUGO);
 
-char* deviceName = "mymem";
+
+char* deviceName = "mymem_smart";
 dev_t devNums;
 unsigned int count = 1;
-struct kobject *kobj_ref;
-struct kobj_attribute mymem_attribute = __ATTR(dataRegions,S_IRUGO, sysfs_show, sysfs_store);
 
 struct file_operations memManager_fops = 
 {
     .owner = THIS_MODULE,
     .llseek = local_llseek,
-    .read = local_read,
-    .write = local_write,
+    .read = smart_read,
+    .write = smart_write,
     .unlocked_ioctl = local_ioctl,
     .open = local_open,
     .release = local_close,
@@ -31,9 +31,7 @@ static struct class *myClass;
 static struct device *myDev;
 
 
-
-
-static int __init memManagerInit(void) //the initialization method that runs when the module is loaded into the kernel
+static int __init smartMemManagerInit(void) //the initialization method that runs when the module is loaded into the kernel
 {    
     int ret = alloc_chrdev_region(&devNums, 0, count, deviceName);
     if(ret < 0)
@@ -71,25 +69,16 @@ static int __init memManagerInit(void) //the initialization method that runs whe
         return -1;
     }
 
-    kobj_ref = kobject_create_and_add("regions", kernel_kobj);
-    if(sysfs_create_file(kobj_ref, &mymem_attribute.attr))
-    {
-        kobject_put(kobj_ref);
-        sysfs_remove_file(kernel_kobj, &mymem_attribute.attr);
-    }
-
     return 0;
 }
 
-static void __exit memManagerExit(void) //the method that runs when the module is removed from the kernel.
+static void __exit smartMemManagerExit(void) //the method that runs when the module is removed from the kernel.
 {
-    kobject_put(kobj_ref);
-    sysfs_remove_file(kernel_kobj, &mymem_attribute.attr);
     cdev_del(&(mymem.my_cdev));
     device_destroy(myClass,devNums);
     class_destroy(myClass);
     unregister_chrdev_region(devNums,count);
 }
 
-module_init(memManagerInit);
-module_exit(memManagerExit);
+module_init(smartMemManagerInit);
+module_exit(smartMemManagerExit);
