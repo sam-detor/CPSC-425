@@ -162,12 +162,19 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
     char* allocated_data;
     struct region* temp;
     struct region* temp_prev;
+    int my_arg;
     unsigned int regionNum;
+    int ret;
+    ret = copy_from_user(&my_arg, (int*)arg, sizeof(my_arg));
+    if(ret <0)
+    {
+        return ret;
+    }
     printk(KERN_INFO "cmd: %d", cmd);
     switch(cmd)
     {
         case MYMEM_IOCTL_ALLOC:
-        if(dev->bytes_allocated + (unsigned int)arg > MAX_MEM)
+        if(dev->bytes_allocated + my_arg > MAX_MEM)
         {
             return -ENOMEM;
         }
@@ -177,7 +184,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         {
             return -ENOMEM;
         }
-        allocated_data = kmalloc(arg, GFP_KERNEL);
+        allocated_data = kmalloc(my_arg, GFP_KERNEL);
         if(allocated_data == NULL)
         {
             return -ENOMEM;
@@ -195,8 +202,8 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
             new_region->next = NULL;
             new_region->offset = 0;
             new_region->data = allocated_data;
-            new_region->region_size = (unsigned int)arg;
-            dev->bytes_allocated = (unsigned int)arg;
+            new_region->region_size = (unsigned int)my_arg;
+            dev->bytes_allocated = (unsigned int)my_arg;
             return 0;
         }
         
@@ -210,15 +217,15 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         new_region->next = NULL;
         new_region->offset = 0;
         new_region->data = allocated_data;
-        new_region->region_size = (unsigned int)arg;
-        dev->bytes_allocated += (unsigned int)arg;
+        new_region->region_size = (unsigned int)my_arg;
+        dev->bytes_allocated += (unsigned int)my_arg;
         return new_region->region_number;
         break;
 
         case MYMEM_IOCTL_FREE:
         
         temp = head;
-        regionNum = (unsigned int)arg;
+        regionNum = (unsigned int)my_arg;
         temp_prev = NULL;
         while(temp != NULL && temp->region_number != regionNum)
         {
@@ -244,7 +251,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         break;
         
         case MYMEM_IOCTL_SETREGION:
-        regionNum = (int)arg;
+        regionNum = my_arg;
         printk(KERN_INFO "called set region w %d", regionNum);
         if(regionNum == dev->current_region_number)
         {
