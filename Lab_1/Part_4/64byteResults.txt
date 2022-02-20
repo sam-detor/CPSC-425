@@ -1,16 +1,17 @@
-Seconds to read: 0.007258, Seconds to Write: 0.014841
-Seconds to read: 0.008121, Seconds to Write: 0.022336
-Seconds to read: 0.007851, Seconds to Write: 0.023671
-Seconds to read: 0.008275, Seconds to Write: 0.032179
-Seconds to read: 0.007459, Seconds to Write: 0.025548
-Seconds to read: 0.006862, Seconds to Write: 0.021889
-Seconds to read: 0.006736, Seconds to Write: 0.020763
-Seconds to read: 0.007044, Seconds to Write: 0.020634
-Seconds to read: 0.007387, Seconds to Write: 0.020476
-Seconds to read: 0.006850, Seconds to Write: 0.021036
-Seconds to read: 0.007856, Seconds to Write: 0.021351
-Seconds to read: 0.006967, Seconds to Write: 0.021441
-Seconds to read: 0.008428, Seconds to Write: 0.021260
-Seconds to read: 0.006802, Seconds to Write: 0.021373
-Seconds to read: 0.006750, Seconds to Write: 0.022588
-Avg seconds to read: 0.007376, Avg seconds to Write: 0.022092
+IN MILI SECONDS
+MiliSec to read: 6.934000, MiliSec to Write: 8.356999
+MiliSec to read: 7.185000, MiliSec to Write: 6.940000
+MiliSec to read: 7.481000, MiliSec to Write: 6.857000
+MiliSec to read: 8.141000, MiliSec to Write: 7.155000
+MiliSec to read: 7.998000, MiliSec to Write: 6.647000
+MiliSec to read: 7.047000, MiliSec to Write: 6.885000
+MiliSec to read: 7.029000, MiliSec to Write: 6.884000
+MiliSec to read: 6.784000, MiliSec to Write: 6.558000
+MiliSec to read: 6.974000, MiliSec to Write: 6.634000
+MiliSec to read: 7.096000, MiliSec to Write: 6.424000
+MiliSec to read: 7.154000, MiliSec to Write: 6.551000
+MiliSec to read: 7.177000, MiliSec to Write: 6.551000
+MiliSec to read: 7.330000, MiliSec to Write: 6.194000
+MiliSec to read: 7.096000, MiliSec to Write: 6.511000
+MiliSec to read: 7.192000, MiliSec to Write: 6.504000
+Avg milisec to read: 7.241200, Avg milisec to Write: 6.776801

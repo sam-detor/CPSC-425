@@ -13,7 +13,7 @@
 #define MYMEM_IOCTL_FREE _IOW(236,1,int*)
 #define MYMEM_IOCTL_SETREGION _IOW(236,2,int*)
 #define KB (1024)
-#define STRING_SIZE (1)
+#define STRING_SIZE (512*KB)
 
 float msecWrite = 0;
 float msecRead = 0;
