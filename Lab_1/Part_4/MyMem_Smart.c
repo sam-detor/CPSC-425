@@ -51,7 +51,7 @@ static int __init smartMemManagerInit(void) //the initialization method that run
         return ret;
     }
 
-    myClass = class_create(THIS_MODULE,"mymem_class");
+    myClass = class_create(THIS_MODULE,"mymem_smart_class");
     if(myClass == NULL)
     {
         printk(KERN_INFO "unable to create the class");
