@@ -63,13 +63,14 @@ ssize_t local_read (struct file* filp, char __user *buff, size_t count, loff_t *
 
     if(*offp >= data_region->region_size)
     {
+        printk(KERN_INFO "too long");
         return 0;
     }
 
     
     byteToRead = (data_region->data)[data_region->offset];
     ret = copy_to_user(buff,&byteToRead,count);
-    if(ret == 0)
+    if(ret != 0)
     {
         return -EFAULT;
     }
@@ -84,7 +85,7 @@ ssize_t local_write (struct file* filp, const char __user *buff, size_t count, l
 
     struct region* data_region = ((struct myMem_struct*)(filp->private_data))->current_region;
     int ret;
-
+    //printk(KERN_INFO "here");
     if(count != 1)
     {
         return -EINVAL;
@@ -101,13 +102,15 @@ ssize_t local_write (struct file* filp, const char __user *buff, size_t count, l
     }
 
     ret = copy_from_user(&((data_region->data)[data_region->offset]), buff, count);
-    if(ret == 0)
+    if(ret != 0)
     {
+        printk(KERN_INFO "here2");
         return -EFAULT;
     }
-
+    printk(KERN_INFO "offset pre: %d, offp* pre: %lld", data_region->offset, *offp);
     *offp += count;
     data_region->offset += count;
+    printk(KERN_INFO "offset post: %d, offp* post: %lld", data_region->offset, *offp);
     return count;  
     
 }
@@ -116,7 +119,7 @@ loff_t local_llseek(struct file * filp, loff_t off, int whence)
 {
     struct region* data_region = ((struct myMem_struct*)(filp->private_data))->current_region;
     loff_t newPos;
-
+    printk(KERN_INFO "Called")
     switch(whence)
     {
         case 0: 
@@ -237,7 +240,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         break;
         
         case MYMEM_IOCTL_SETREGION:
-        regionNum = (int)arg
+        regionNum = (int)arg;
         if(regionNum == dev->current_region_number)
         {
             return 0;
