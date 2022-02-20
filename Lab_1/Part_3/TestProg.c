@@ -7,6 +7,10 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#define MYMEM_IOCTL_ALLOC _IOW(236,0,int*)
+#define MYMEM_IOCTL_FREE _IOW(236,1,int*)
+#define MYMEM_IOCTL_SETREGION _IOW(236,2,int*)
+
 int main()
 {
     int fd = open("/dev/mymem", O_RDWR);
@@ -16,7 +20,7 @@ int main()
     char myChar = 'z';
     int size = 10;
     printf("file descriptor %d\n", fd);
-    int num1 = ioctl(fd,0,&size);
+    int num1 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
     printf("num1:%d\n", num1);
     for(int i = 0; i< 10; i++)
     {
@@ -26,23 +30,23 @@ int main()
     lseek(fd, 0, 0);
     //printf("%d\n",ioctl(fd,2,num1));
     //perror("The error is:");
-    int num2 = ioctl(fd,0,&size);
+    int num2 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
     printf("num2:%d\n", num2);
-    int num3 = ioctl(fd,0,&size);
+    int num3 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
     printf("num3:%d\n", num3);
-    int num4 = ioctl(fd,0,&size);
-    int num5 = ioctl(fd,0,&size);
-    printf("%d\n",ioctl(fd,1,&num3));
+    int num4 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
+    int num5 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
+    printf("%d\n",ioctl(fd,MYMEM_IOCTL_FREE,&num3));
     errorNum = errno;
     
-    printf("%d\n",ioctl(fd,2,&num4));
+    printf("%d\n",ioctl(fd,MYMEM_IOCTL_SETREGION,&num4));
     perror("The error is:");
     for(int i = 0; i< 10; i++)
     {
         //printf("%c",string[i]);
         write(fd, &(string2[i]), 1);
     }
-    ioctl(fd,2,&num1);
+    ioctl(fd,MYMEM_IOCTL_SETREGION,&num1);
     lseek(fd, 0, 0);
     for(int i = 0; i < 10; i++)
     {
@@ -51,7 +55,7 @@ int main()
         myChar = 'z';
     }
     printf("\n");
-    ioctl(fd,2,&num5);
+    ioctl(fd,MYMEM_IOCTL_SETREGION,&num4);
     lseek(fd, 0, 0);
     for(int i = 0; i < 10; i++)
     {
