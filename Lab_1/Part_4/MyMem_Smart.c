@@ -14,7 +14,7 @@ char* deviceName = "mymem_smart";
 dev_t devNums;
 unsigned int count = 1;
 
-struct file_operations memManager_fops = 
+struct file_operations memManagerSmart_fops = 
 {
     .owner = THIS_MODULE,
     .llseek = local_llseek,
@@ -40,8 +40,8 @@ static int __init smartMemManagerInit(void) //the initialization method that run
         return ret;
     }
 
-    cdev_init(&(mymem.my_cdev), &memManager_fops);
-    mymem.my_cdev.ops = &memManager_fops;
+    cdev_init(&(mymem.my_cdev), &memManagerSmart_fops);
+    mymem.my_cdev.ops = &memManagerSmart_fops;
     mymem.my_cdev.owner = THIS_MODULE;
     ret = cdev_add(&(mymem.my_cdev), devNums, count);
     if(ret < 0)
@@ -59,7 +59,7 @@ static int __init smartMemManagerInit(void) //the initialization method that run
         unregister_chrdev_region(devNums, count);
         return -1;
     }
-    myDev = device_create(myClass, NULL, devNums, NULL, "mymem");
+    myDev = device_create(myClass, NULL, devNums, NULL, "mymem_smart");
     if(myDev == NULL)
     {
         printk(KERN_INFO "unable to create device");

@@ -59,7 +59,7 @@ ssize_t local_read (struct file* filp, char __user *buff, size_t count, loff_t *
     struct region* data_region = dev->current_region;
     char byteToRead;
     int ret;
-
+    printk(KERN_INFO "here bad");
     if(count != 1)
     {
         return -EINVAL;

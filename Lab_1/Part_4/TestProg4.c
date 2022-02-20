@@ -11,10 +11,35 @@
 #define MYMEM_IOCTL_ALLOC _IOW(236,0,int*)
 #define MYMEM_IOCTL_FREE _IOW(236,1,int*)
 #define MYMEM_IOCTL_SETREGION _IOW(236,2,int*)
+/*
+int main()
+{
+    int fd = open("/dev/mymem_smart", O_RDWR);
+    int errorNum = 0;
+    char* string = "helloWorld!";
+    int size = 10;
+    printf("file descriptor %d\n", fd);
+    int num1 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
+    printf("num1:%d\n", num1);
+    long int val = write(fd, (void *)string, 10);
+    perror("write");
+    printf("ret val write %ld", val);
+    lseek(fd, 0, 0);
+    char* myString1 = malloc(10);
+    printf("ret val read %ld", read(fd, (void *) myString1, 10));
+    printf("%s\n", myString1);
+    perror("read");
+    free(myString1);
+    int ret = close(fd);
+    
+    printf("close return val: %d\n", ret);
+}
+*/
+
 
 int main()
 {
-    int fd = open("/dev/mymem", O_RDWR);
+    int fd = open("/dev/mymem_smart", O_RDWR);
     int errorNum = 0;
     char* string = "helloWorld";
     char* string2 = "goodbyeWor";
@@ -25,8 +50,6 @@ int main()
     printf("num1:%d\n", num1);
     write(fd, string, 10);
     lseek(fd, 0, 0);
-    //printf("%d\n",ioctl(fd,2,num1));
-    //perror("The error is:");
     int num2 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
     printf("num2:%d\n", num2);
     int num3 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
@@ -38,7 +61,7 @@ int main()
     
     printf("%d\n",ioctl(fd,MYMEM_IOCTL_SETREGION,&num4));
     perror("The error is:");
-    write(fd, string2, 1);
+    write(fd, string2, 10);
     
     ioctl(fd,MYMEM_IOCTL_SETREGION,&num1);
     lseek(fd, 0, 0);
@@ -49,7 +72,7 @@ int main()
     printf("\n");
     ioctl(fd,MYMEM_IOCTL_SETREGION,&num4);
     lseek(fd, 0, 0);
-    read(fd, myString1, 1);
+    read(fd, myString1, 10);
     printf("%s", myString1);
     printf("\n");
     int syfs_fd = open("/sys/kernel/regions/dataRegions", O_RDONLY);
