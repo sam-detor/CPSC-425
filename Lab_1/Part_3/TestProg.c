@@ -64,15 +64,32 @@ int main()
         myChar = 'z';
     }
     printf("\n");
-    int syfs_fd = open("/sys/kernel/mymem/dataRegions", O_RDONLY);
-    char sysfs;
-    int read_val  = read(syfs_fd, &sysfs, 1);
-    while(read_val != 0)
+    int syfs_fd = open("/sys/kernel/regions/dataRegions", O_RDONLY);
+    printf("file des:%d\n", syfs_fd);
+    if(syfs_fd > 0)
     {
-        printf("%c", myChar);
-        read_val  = read(syfs_fd, &sysfs, 1);
+        char sysfs;
+        int read_val  = read(syfs_fd, &sysfs, 1);
+        while(read_val == 1)
+        {
+            printf("%c", sysfs);
+            read_val  = read(syfs_fd, &sysfs, 1);
+        }
+        printf("\n");
     }
-    printf("\n");
+    int param_file = open("/sys/module/myMod/parameters/param_bytes_allocated", O_RDONLY);
+    if(syfs_fd > 0)
+    {
+        char paramChar;
+        int read_val  = read(param_file, &paramChar, 1);
+        while(read_val == 1)
+        {
+            printf("%c", paramChar);
+            read_val  =  read(param_file, &paramChar, 1);
+        }
+        printf("\n");
+    }
+
     int ret = close(fd);
     
     printf("close return val: %d\n", ret);
