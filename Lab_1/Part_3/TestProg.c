@@ -64,6 +64,15 @@ int main()
         myChar = 'z';
     }
     printf("\n");
+    int syfs_fd = open("/sys/kernel/mymem/dataRegions", O_RDONLY);
+    char sysfs;
+    int read_val  = read(syfs_fd, &sysfs, 1);
+    while(read_val != 0)
+    {
+        printf("%c", myChar);
+        read_val  = read(syfs_fd, &sysfs, 1);
+    }
+    printf("\n");
     int ret = close(fd);
     
     printf("close return val: %d\n", ret);

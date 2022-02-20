@@ -13,7 +13,11 @@ local_close,
 */
 
 static int nextID = 0;
+int param_bytes_allocated = 0;
+struct region* dataRegions = NULL;
 
+
+/*
 void addToRegionList(int id, int size)
 {
     if(regionsAllocated >= dataRegionsSize)
@@ -28,11 +32,14 @@ void addToRegionList(int id, int size)
     dataRegions[regionsAllocated].size = size;
     regionsAllocated++;
 }
+*/
 
 int local_open (struct inode *inode, struct file *filp)
 {
     struct myMem_struct* dev = container_of(inode->i_cdev, struct myMem_struct, my_cdev);
     filp->private_data = dev;
+    dataRegions = NULL;
+    param_bytes_allocated = 0;
     return 0;
 }
 
@@ -42,7 +49,6 @@ int local_close(struct inode* inode, struct file* filp)
     struct myMem_struct* dev = (struct myMem_struct*) filp->private_data;
     struct region* head = dev->data_region;
     struct region* temp;
-    int i = 0;
     dev->data_region = NULL;
     dev->current_region = NULL;
     dev->current_region_number = 0;
@@ -55,8 +61,6 @@ int local_close(struct inode* inode, struct file* filp)
         kfree(head->data);
         kfree(head);
         head = temp;
-        kfree(dataRegions[i]);
-        i++;
     }
     dataRegions = NULL;
     printk(KERN_INFO "close!");
@@ -184,7 +188,6 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
     int my_arg;
     unsigned int regionNum;
     int ret;
-    struct region_report* newRegionReport;
     ret = copy_from_user(&my_arg, (int*)arg, sizeof(my_arg));
     if(ret <0)
     {
@@ -309,7 +312,6 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
 ssize_t sysfs_show(struct kobject *kobj, struct kobj_attribute * attr, char* buf)
 {
     struct region* temp = dataRegions;
-    int i = 0;
     char* myStr = kmalloc(50, GFP_KERNEL);
     int size = 0;
     int add = 0;
@@ -318,11 +320,12 @@ ssize_t sysfs_show(struct kobject *kobj, struct kobj_attribute * attr, char* buf
         size = sprintf(myStr,"id: %d, size: %d\n", temp->region_number, temp->region_size);
         sprintf(buf + add, myStr);
         add += size;
+        temp = temp->next;
     }
     return add;
 }
 
-ssize_t sysfs_store(struct kobject *kobj, struct kobj_attribute * attr, char* buf)
+ssize_t sysfs_store(struct kobject *kobj, struct kobj_attribute * attr, const char* buf, size_t count)
 {
     return 0;
 }
