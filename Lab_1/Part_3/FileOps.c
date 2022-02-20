@@ -1,5 +1,7 @@
 #include "MemManager.h"
-
+#define MYMEM_IOCTL_ALLOC _IOW(236,0,int)
+#define MYMEM_IOCTL_FREE _IOW(236,1,int)
+#define MYMEM_IOCTL_SETREGION _IOW(236,2,int)
 
 /*
 local_llseek,
@@ -63,7 +65,7 @@ ssize_t local_read (struct file* filp, char __user *buff, size_t count, loff_t *
 
     if(*offp >= data_region->region_size)
     {
-        printk(KERN_INFO "too long");
+        //printk(KERN_INFO "too long");
         return 0;
     }
 
@@ -104,13 +106,13 @@ ssize_t local_write (struct file* filp, const char __user *buff, size_t count, l
     ret = copy_from_user(&((data_region->data)[data_region->offset]), buff, count);
     if(ret != 0)
     {
-        printk(KERN_INFO "here2");
+        //printk(KERN_INFO "here2");
         return -EFAULT;
     }
-    printk(KERN_INFO "offset pre: %d, offp* pre: %lld", data_region->offset, *offp);
+    //printk(KERN_INFO "offset pre: %d, offp* pre: %lld", data_region->offset, *offp);
     *offp += count;
     data_region->offset += count;
-    printk(KERN_INFO "offset post: %d, offp* post: %lld", data_region->offset, *offp);
+    //printk(KERN_INFO "offset post: %d, offp* post: %lld", data_region->offset, *offp);
     return count;  
     
 }
@@ -119,11 +121,12 @@ loff_t local_llseek(struct file * filp, loff_t off, int whence)
 {
     struct region* data_region = ((struct myMem_struct*)(filp->private_data))->current_region;
     loff_t newPos;
-    printk(KERN_INFO "Called")
+    //printk(KERN_INFO "Called");
     switch(whence)
     {
         case 0: 
         newPos = off;
+        //printk(KERN_INFO "Called2");
         break;
 
         case 1:
@@ -138,7 +141,7 @@ loff_t local_llseek(struct file * filp, loff_t off, int whence)
         return -EINVAL;
     }
 
-    if(newPos > 0 && newPos <= data_region->region_size)
+    if(newPos >= 0 && newPos <= data_region->region_size)
     {
         filp->f_pos = newPos;
         data_region->offset = newPos;
@@ -159,7 +162,8 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
     char* allocated_data;
     struct region* temp;
     struct region* temp_prev;
-    int regionNum;
+    unsigned int regionNum;
+    printk(KERN_INFO "cmd: %d", cmd);
     switch(cmd)
     {
         case MYMEM_IOCTL_ALLOC:
@@ -214,7 +218,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         case MYMEM_IOCTL_FREE:
         
         temp = head;
-        regionNum = (int)arg;
+        regionNum = (unsigned int)arg;
         temp_prev = NULL;
         while(temp != NULL && temp->region_number != regionNum)
         {
@@ -241,6 +245,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         
         case MYMEM_IOCTL_SETREGION:
         regionNum = (int)arg;
+        printk(KERN_INFO "called set region w %d", regionNum);
         if(regionNum == dev->current_region_number)
         {
             return 0;
@@ -253,14 +258,17 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         } 
         if(temp == NULL)
         {
+            printk(KERN_INFO "didn't find it");
             return -EINVAL;
         }
         dev->current_region = temp;
         dev->current_region_number = regionNum;
+        printk(KERN_INFO "set it");
         return 0;
         break;
 
         default:
+        printk(KERN_INFO "default");
         return -ENOTTY;
 
     }

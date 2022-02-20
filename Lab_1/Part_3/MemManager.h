@@ -10,9 +10,6 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 
-#define MYMEM_IOCTL_ALLOC (0)
-#define MYMEM_IOCTL_FREE (1)
-#define MYMEM_IOCTL_SETREGION (2)
 #define MAX_MEM (1048576)
 
 struct region
