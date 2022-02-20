@@ -1,0 +1,16 @@
+Seconds to read: 0.000443, Seconds to Write: 0.001433
+Seconds to read: 0.000470, Seconds to Write: 0.001406
+Seconds to read: 0.000444, Seconds to Write: 0.001215
+Seconds to read: 0.000411, Seconds to Write: 0.001907
+Seconds to read: 0.000418, Seconds to Write: 0.001235
+Seconds to read: 0.000493, Seconds to Write: 0.001476
+Seconds to read: 0.000784, Seconds to Write: 0.001272
+Seconds to read: 0.000441, Seconds to Write: 0.001239
+Seconds to read: 0.000449, Seconds to Write: 0.001417
+Seconds to read: 0.000459, Seconds to Write: 0.001414
+Seconds to read: 0.000531, Seconds to Write: 0.001708
+Seconds to read: 0.000448, Seconds to Write: 0.001211
+Seconds to read: 0.000440, Seconds to Write: 0.001205
+Seconds to read: 0.000522, Seconds to Write: 0.001374
+Seconds to read: 0.000416, Seconds to Write: 0.001207
+Avg seconds to read: 0.000478, Avg seconds to Write: 0.001381

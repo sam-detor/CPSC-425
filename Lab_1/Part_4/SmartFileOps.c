@@ -42,22 +42,22 @@ ssize_t smart_write (struct file* filp, const char __user *buff, size_t count, l
 {
     struct region* data_region = ((struct myMem_struct*)(filp->private_data))->current_region;
     int ret;
-    printk(KERN_INFO "here4");
+    //printk(KERN_INFO "here4");
     if(count + data_region->offset > data_region->region_size)
     {
-        printk(KERN_INFO "offset: %d, size: %d", data_region->offset, data_region->region_size);
+        //printk(KERN_INFO "offset: %d, size: %d", data_region->offset, data_region->region_size);
         return -EINVAL;
     }
 
     if(data_region == NULL)
     {
-        printk(KERN_INFO "here1");
+        //printk(KERN_INFO "here1");
         return 0;
     }
 
     if(*offp >= data_region->region_size)
     {
-        printk(KERN_INFO "here2");
+        //printk(KERN_INFO "here2");
         return 0;
     }
 
@@ -65,7 +65,7 @@ ssize_t smart_write (struct file* filp, const char __user *buff, size_t count, l
     if(ret != 0)
     {
         //printk(KERN_INFO "here2");
-        printk(KERN_INFO "here3");
+        //printk(KERN_INFO "here3");
         return -EFAULT;
     }
     //printk(KERN_INFO "offset pre: %d, offp* pre: %lld", data_region->offset, *offp);

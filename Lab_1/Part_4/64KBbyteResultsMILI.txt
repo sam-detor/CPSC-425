@@ -1,0 +1,17 @@
+IN MILI SECONDS
+MiliSec to read: 0.041000, MiliSec to Write: 0.062000
+MiliSec to read: 0.032000, MiliSec to Write: 0.028000
+MiliSec to read: 0.031000, MiliSec to Write: 0.028000
+MiliSec to read: 0.030000, MiliSec to Write: 0.028000
+MiliSec to read: 0.030000, MiliSec to Write: 0.028000
+MiliSec to read: 0.031000, MiliSec to Write: 0.027000
+MiliSec to read: 0.031000, MiliSec to Write: 0.027000
+MiliSec to read: 0.032000, MiliSec to Write: 0.027000
+MiliSec to read: 0.031000, MiliSec to Write: 0.028000
+MiliSec to read: 0.031000, MiliSec to Write: 0.028000
+MiliSec to read: 0.031000, MiliSec to Write: 0.028000
+MiliSec to read: 0.031000, MiliSec to Write: 0.028000
+MiliSec to read: 0.031000, MiliSec to Write: 0.028000
+MiliSec to read: 0.031000, MiliSec to Write: 0.028000
+MiliSec to read: 0.031000, MiliSec to Write: 0.028000
+Avg milisec to read: 0.031667, Avg milisec to Write: 0.030067
