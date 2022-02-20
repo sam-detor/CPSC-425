@@ -1,7 +1,7 @@
 #include "MemManager.h"
-#define MYMEM_IOCTL_ALLOC _IOW(236,0,int)
-#define MYMEM_IOCTL_FREE _IOW(236,1,int)
-#define MYMEM_IOCTL_SETREGION _IOW(236,2,int)
+#define MYMEM_IOCTL_ALLOC _IOW(236,0,int*)
+#define MYMEM_IOCTL_FREE _IOW(236,1,int*)
+#define MYMEM_IOCTL_SETREGION _IOW(236,2,int*)
 
 /*
 local_llseek,
