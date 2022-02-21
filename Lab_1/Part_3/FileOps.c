@@ -179,7 +179,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
     {
         return ret;
     }
-    printk(KERN_INFO "cmd: %d", cmd);
+    //printk(KERN_INFO "cmd: %d", cmd);
     switch(cmd)
     {
         case MYMEM_IOCTL_ALLOC:
@@ -266,7 +266,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         
         case MYMEM_IOCTL_SETREGION:
         regionNum = my_arg;
-        printk(KERN_INFO "called set region w %d", regionNum);
+        //printk(KERN_INFO "called set region w %d", regionNum);
         if(regionNum == dev->current_region_number)
         {
             return 0;
@@ -279,17 +279,17 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
         } 
         if(temp == NULL)
         {
-            printk(KERN_INFO "didn't find it");
+            //printk(KERN_INFO "didn't find it");
             return -EINVAL;
         }
         dev->current_region = temp;
         dev->current_region_number = regionNum;
-        printk(KERN_INFO "set it");
+        //printk(KERN_INFO "set it");
         return 0;
         break;
 
         default:
-        printk(KERN_INFO "default");
+        //printk(KERN_INFO "default");
         return -ENOTTY;
 
     }
