@@ -8,7 +8,17 @@ MODULE_VERSION("1.0");
 
 module_param(param_bytes_allocated, int, S_IRUGO);
 
+char* regions = "regions";
+const struct kernel_param_ops regions_ops = //the methods that run when the double_me param is set or requested
+{
+    .set = &sysfs_store,
+    .get = &sysfs_show,
+};
+
+module_param_cb(regions, &regions_ops, &regions, S_IRUGO);
+
 char* deviceName = "mymem";
+
 dev_t devNums;
 unsigned int count = 1;
 struct kobject *kobj_ref;
