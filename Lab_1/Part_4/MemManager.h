@@ -15,11 +15,13 @@
 
 #define MAX_MEM (1048576)
 
-extern int param_bytes_allocated;
+//exported variables/globals
+extern int allocated;
 extern struct region* dataRegions;
 extern char* regions;
 extern const struct kernel_param_ops regions_ops;
 
+//data structure definitions
 
 struct region
 {
@@ -40,7 +42,7 @@ struct myMem_struct
 
 };
 
-
+//relevant function declarations
 int local_open (struct inode *inode, struct file *flip);
 int local_close(struct inode* inode, struct file *filp);
 ssize_t local_read (struct file* filp, char __user *buff, size_t count, loff_t *offp);

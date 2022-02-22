@@ -12,4 +12,10 @@ all:
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	
+test:
+	gcc TestProg4.c -o TestProg4
+
+dataCollection:
+	gcc DataCollection4.c -o DataCollection4
 

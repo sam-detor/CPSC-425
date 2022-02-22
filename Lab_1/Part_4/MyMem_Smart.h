@@ -15,6 +15,7 @@
 
 #define MAX_MEM (1048576)
 
+//the "exported symbols" from the base module used in this module
 extern int nextID;
 extern int param_bytes_allocated;
 extern struct region* dataRegions;
@@ -26,7 +27,7 @@ extern loff_t local_llseek(struct file * filp, loff_t off, int whence);
 extern long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg);
 extern int sysfs_show(char* buf, const struct kernel_param *kp);
 
-
+//struct definitions
 struct region
 {
     char* data;
@@ -45,6 +46,6 @@ struct myMem_struct
     struct cdev my_cdev;
 
 };
-
+//smart read and write calls
 ssize_t smart_read (struct file* filp, char __user *buff, size_t count, loff_t *offp);
 ssize_t smart_write (struct file* filp, const char __user *buff, size_t count, loff_t *offp);

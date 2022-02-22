@@ -6,7 +6,8 @@ MODULE_DESCRIPTION("1 byte memory manager. See lab report for sources");
                     
 MODULE_VERSION("1.0");
 
-module_param(param_bytes_allocated, int, S_IRUGO);
+//Setting up module params regions and allocated
+module_param(allocated, int, S_IRUGO);
 
 char* regions = "regions";
 const struct kernel_param_ops regions_ops =
@@ -16,6 +17,8 @@ const struct kernel_param_ops regions_ops =
 EXPORT_SYMBOL(regions);
 EXPORT_SYMBOL(regions_ops);
 module_param_cb(regions, &regions_ops, &regions, S_IRUGO);
+
+//declaring global variables for mymem driver
 
 char* deviceName = "mymem";
 dev_t devNums;
@@ -40,16 +43,19 @@ static struct device *myDev;
 
 static int __init memManagerInit(void) //the initialization method that runs when the module is loaded into the kernel
 {    
-    int ret = alloc_chrdev_region(&devNums, 0, count, deviceName);
+    int ret = alloc_chrdev_region(&devNums, 0, count, deviceName); //allocating major and minor numbers for the device
     if(ret < 0)
     {
         printk(KERN_INFO "unable to allocate region");
         return ret;
     }
 
+    //initializing the cdev struct
     cdev_init(&(mymem.my_cdev), &memManager_fops);
     mymem.my_cdev.ops = &memManager_fops;
     mymem.my_cdev.owner = THIS_MODULE;
+
+    //adding the cdev struct to the allocated character device region previously, now it needs to be able to take requests
     ret = cdev_add(&(mymem.my_cdev), devNums, count);
     if(ret < 0)
     {
@@ -58,6 +64,7 @@ static int __init memManagerInit(void) //the initialization method that runs whe
         return ret;
     }
 
+    //creating the device class 
     myClass = class_create(THIS_MODULE,"mymem_class");
     if(myClass == NULL)
     {
@@ -66,6 +73,8 @@ static int __init memManagerInit(void) //the initialization method that runs whe
         unregister_chrdev_region(devNums, count);
         return -1;
     }
+    
+    //creating the device file
     myDev = device_create(myClass, NULL, devNums, NULL, "mymem");
     if(myDev == NULL)
     {

@@ -13,76 +13,90 @@
 
 int main()
 {
+    //opening file and declaring useful vars
     int fd = open("/dev/mymem", O_RDWR);
     int errorNum = 0;
     char* string = "helloWorld";
     char* string2 = "goodbyeWor";
     char myChar = 'z';
     int size = 10;
+    
     printf("file descriptor %d\n", fd);
-    int num1 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
+
+    int num1 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size); //Allocating a region 
     printf("num1:%d\n", num1);
-    for(int i = 0; i< 10; i++)
+
+    for(int i = 0; i< 10; i++) //and writing to it
     {
-        //printf("%c",string[i]);
         write(fd, &(string[i]), 1);
     }
     lseek(fd, 0, 0);
-    //printf("%d\n",ioctl(fd,2,num1));
-    //perror("The error is:");
-    int num2 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
+
+    int num2 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size); //Allocating a bunch of regions
     printf("num2:%d\n", num2);
+
     int num3 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
     printf("num3:%d\n", num3);
+
     int num4 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
     int num5 = ioctl(fd,MYMEM_IOCTL_ALLOC,&size);
-    printf("%d\n",ioctl(fd,MYMEM_IOCTL_FREE,&num3));
-    errorNum = errno;
+
+    printf("ioctl free region return val: %d\n",ioctl(fd,MYMEM_IOCTL_FREE,&num3)); //testing ioctl free region function
+  
     
-    printf("%d\n",ioctl(fd,MYMEM_IOCTL_SETREGION,&num4));
-    perror("The error is:");
-    for(int i = 0; i< 10; i++)
+    printf("ioctl set region return val: %d\n",ioctl(fd,MYMEM_IOCTL_SETREGION,&num4)); //testing ioctl set region function
+ 
+    for(int i = 0; i< 10; i++) //writing to the newly set region
     {
-        //printf("%c",string[i]);
         write(fd, &(string2[i]), 1);
     }
+
     ioctl(fd,MYMEM_IOCTL_SETREGION,&num1);
     lseek(fd, 0, 0);
-    for(int i = 0; i < 10; i++)
+
+    for(int i = 0; i < 10; i++) //reading from the original region
     {
         read(fd, &myChar, 1);
         printf("%c", myChar);
-        myChar = 'z';
+        myChar = 'z'; //to catch failed reads
     }
     printf("\n");
+
     ioctl(fd,MYMEM_IOCTL_SETREGION,&num4);
     lseek(fd, 0, 0);
-    for(int i = 0; i < 10; i++)
+
+    for(int i = 0; i < 10; i++) //reading from the other region written to
     {
         read(fd, &myChar, 1);
         printf("%c", myChar);
-        myChar = 'z';
+        myChar = 'z'; //to catch failed reads
     }
     printf("\n");
+
+    //Testing Mod params
+
     int syfs_fd = open("/sys/module/myMod/parameters/regions", O_RDONLY);
-    printf("file des:%d, path: %s \n", syfs_fd, "/sys/module/myMod/parameters/regions");
+    printf("file descriptor:%d, path: %s \n", syfs_fd, "/sys/module/myMod/parameters/regions");
+
     if(syfs_fd > 0)
     {
         char sysfs;
         int read_val  = read(syfs_fd, &sysfs, 1);
-        while(read_val == 1)
+        while(read_val == 1) //reading all the chars in the regions param file
         {
             printf("%c", sysfs);
             read_val  = read(syfs_fd, &sysfs, 1);
         }
         printf("\n");
     }
+
     int param_file = open("/sys/module/myMod/parameters/param_bytes_allocated", O_RDONLY);
+    
     if(syfs_fd > 0)
     {
         char paramChar;
-        int read_val  = read(param_file, &paramChar, 1);
-        while(read_val == 1)
+        int read_val = read(param_file, &paramChar, 1);
+        while(read_val == 1) //reading all the chars in the allocated param file
         {
             printf("%c", paramChar);
             read_val  =  read(param_file, &paramChar, 1);
