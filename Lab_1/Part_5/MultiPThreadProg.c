@@ -68,6 +68,7 @@ int main()
     for (int id=0; id < WORKERS; id++) {
        pthread_join(threads[id],NULL);
     }
+    
     lseek(fd, 0, 0);
     read(fd, &myCounter, 8);
     close(fd);
