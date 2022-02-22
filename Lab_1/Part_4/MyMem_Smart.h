@@ -18,10 +18,13 @@
 extern int nextID;
 extern int param_bytes_allocated;
 extern struct region* dataRegions;
+extern char* regions;
+extern const struct kernel_param_ops regions_ops;
 extern int local_open (struct inode *inode, struct file *flip);
 extern int local_close(struct inode* inode, struct file *filp);
 extern loff_t local_llseek(struct file * filp, loff_t off, int whence);
 extern long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg);
+extern int sysfs_show(char* buf, const struct kernel_param *kp);
 
 
 struct region

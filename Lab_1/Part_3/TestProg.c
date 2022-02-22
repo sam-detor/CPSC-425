@@ -64,8 +64,8 @@ int main()
         myChar = 'z';
     }
     printf("\n");
-    int syfs_fd = open("/sys/kernel/regions/dataRegions", O_RDONLY);
-    printf("file des:%d\n", syfs_fd);
+    int syfs_fd = open("/sys/module/myMod/parameters/regions", O_RDONLY);
+    printf("file des:%d, path: %s \n", syfs_fd, "/sys/module/myMod/parameters/regions");
     if(syfs_fd > 0)
     {
         char sysfs;

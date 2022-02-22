@@ -11,10 +11,6 @@ local_ioctl,
 local_open,
 local_close,
 */
-
-
-
-
 int nextID = 0;
 int param_bytes_allocated = 0;
 struct region* dataRegions = NULL;
@@ -161,7 +157,7 @@ loff_t local_llseek(struct file * filp, loff_t off, int whence)
         return -EINVAL;
     }
 }
-EXPORT_SYMBOL(local_llseek);
+
 
 long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
 {
@@ -295,7 +291,7 @@ long int local_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
     }
 } 
 
-ssize_t sysfs_show(struct kobject *kobj, struct kobj_attribute * attr, char* buf)
+int sysfs_show(char* buf, const struct kernel_param *kp)
 {
     struct region* temp = dataRegions;
     char* myStr = kmalloc(50, GFP_KERNEL);
@@ -308,18 +304,16 @@ ssize_t sysfs_show(struct kobject *kobj, struct kobj_attribute * attr, char* buf
         add += size;
         temp = temp->next;
     }
+    kfree(myStr);
     return add;
 }
 
-ssize_t sysfs_store(struct kobject *kobj, struct kobj_attribute * attr, const char* buf, size_t count)
-{
-    return 0;
-}
 
-
-EXPORT_SYMBOL_GPL(local_ioctl);
-EXPORT_SYMBOL_GPL(local_open);
-EXPORT_SYMBOL_GPL(local_close);
+EXPORT_SYMBOL(local_ioctl);
+EXPORT_SYMBOL(local_open);
+EXPORT_SYMBOL(local_close);
 EXPORT_SYMBOL(nextID);
 EXPORT_SYMBOL(param_bytes_allocated);
 EXPORT_SYMBOL(dataRegions);
+EXPORT_SYMBOL(local_llseek);
+EXPORT_SYMBOL(sysfs_show);

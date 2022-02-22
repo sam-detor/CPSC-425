@@ -6,10 +6,6 @@ MODULE_DESCRIPTION("1 byte memory manager. See lab report for sources");
                     
 MODULE_VERSION("1.0");
 
-int param_bytes_allocated;
-module_param(param_bytes_allocated, int, S_IRUGO);
-
-
 char* deviceName = "mymem_smart";
 dev_t devNums;
 unsigned int count = 1;

@@ -8,11 +8,18 @@ MODULE_VERSION("1.0");
 
 module_param(param_bytes_allocated, int, S_IRUGO);
 
+char* regions = "regions";
+const struct kernel_param_ops regions_ops =
+{
+    .get = sysfs_show,
+};
+EXPORT_SYMBOL(regions);
+EXPORT_SYMBOL(regions_ops);
+module_param_cb(regions, &regions_ops, &regions, S_IRUGO);
+
 char* deviceName = "mymem";
 dev_t devNums;
 unsigned int count = 1;
-struct kobject *kobj_ref;
-struct kobj_attribute mymem_attribute = __ATTR(dataRegions,S_IRUGO, sysfs_show, sysfs_store);
 
 struct file_operations memManager_fops = 
 {
@@ -29,8 +36,6 @@ struct myMem_struct mymem;
 
 static struct class *myClass;
 static struct device *myDev;
-
-
 
 
 static int __init memManagerInit(void) //the initialization method that runs when the module is loaded into the kernel
@@ -71,20 +76,11 @@ static int __init memManagerInit(void) //the initialization method that runs whe
         return -1;
     }
 
-    kobj_ref = kobject_create_and_add("regions", kernel_kobj);
-    if(sysfs_create_file(kobj_ref, &mymem_attribute.attr))
-    {
-        kobject_put(kobj_ref);
-        sysfs_remove_file(kernel_kobj, &mymem_attribute.attr);
-    }
-
     return 0;
 }
 
 static void __exit memManagerExit(void) //the method that runs when the module is removed from the kernel.
 {
-    kobject_put(kobj_ref);
-    sysfs_remove_file(kernel_kobj, &mymem_attribute.attr);
     cdev_del(&(mymem.my_cdev));
     device_destroy(myClass,devNums);
     class_destroy(myClass);
