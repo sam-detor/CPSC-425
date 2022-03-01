@@ -7,8 +7,6 @@
 long my_syscall_test(long sys_num, long fd, char* string, size_t len)
 {
     long returnVal;
-    int src = 1;
-    int dst;
 
     __asm__ ("movq %1, %%rax\n\t"
                 "movq %2, %%rdi\n\t"
@@ -26,8 +24,6 @@ long my_syscall_test(long sys_num, long fd, char* string, size_t len)
 long my_syscall(long sys_num, char* string, size_t len)
 {
     long returnVal;
-    int src = 1;
-    int dst;
 
     __asm__ ("movq %1, %%rax\n\t"
                 "movq %2, %%rdi\n\t"
@@ -44,21 +40,25 @@ long my_syscall(long sys_num, char* string, size_t len)
 int main(void)
 {
     char* testString1 = "hello world!\n";
-    char* testString2 = "Hi, ThHeRe #5!";
+    char* testString2 = "Hi, ThERe #5!";
     size_t len1 = strlen(testString1);
     size_t len2 = strlen(testString2);
     
-    my_syscall_test(1,1,testString1,len1);
+    char* realTestString = malloc(len1);
+    realTestString = strcpy(realTestString,testString1);
 
-    /*
-    printf("Test String 1 Original: %s\n", testString1);
+    char* realTestString2 = malloc(len2);
+    realTestString2 = strcpy(realTestString2,testString2);
+
+    printf("Test String 1 Original: %s\n", realTestString);
     printf("Test String 2 Original: %s\n", testString2);
 
-    my_syscall(SYS_CAPITALIZE_NUM, testString1, len1);
-    my_syscall(SYS_CAPITALIZE_NUM, testString2, len2);
+    my_syscall(SYS_CAPITALIZE_NUM, realTestString, len1);
+    my_syscall(SYS_CAPITALIZE_NUM, realTestString2, len2);
 
-    printf("Test String 1 Final: %s\n", testString1);
-    printf("Test String 2 Final: %s\n", testString2);
-    */
-    
+    printf("Test String 1 Final: %s\n", realTestString);
+    printf("Test String 2 Final: %s\n", realTestString2);
+
+    free(realTestString);
+    free(realTestString2);
 }

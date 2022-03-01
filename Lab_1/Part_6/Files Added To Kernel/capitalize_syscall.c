@@ -5,15 +5,16 @@
 
 //SYSCALL 548!!
 
-SYSCALL_DEFINE2(capitalize, char __user*, buff, int, length)
+SYSCALL_DEFINE2(capitalize_syscall, char __user*, buff, int, length)
 {
     int ret;
+    int i;
     char* editableString = kmalloc(length, GFP_KERNEL);
     if(editableString == NULL)
     {
         return -EINVAL;
     }
-    int i;
+    
     ret = copy_from_user(editableString, buff, length);
     if(ret != 0)
     {
@@ -38,3 +39,4 @@ SYSCALL_DEFINE2(capitalize, char __user*, buff, int, length)
     kfree(editableString);
     return 0;
 }
+

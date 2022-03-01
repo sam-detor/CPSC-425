@@ -11,21 +11,45 @@
 
 #define SYS_CAPITALIZE_NUM (548)
 
+int my_test(char* editableString, int length)
+{
+    int i;
+    for(i = 0; i < length; i++)
+    {
+        if(editableString[i] >= 'a' && editableString[i] <= 'z')
+        {
+            editableString[i] -= 32;
+        }
+    }
+    return 0;
+}
+
+
+
 int main(void)
 {
     char* testString1 = "hello world!";
-    char* testString2 = "Hi, ThHeRe #5!";
+    char* testString2 = "Hi, ThERe #5!";
     size_t len1 = strlen(testString1);
     size_t len2 = strlen(testString2);
 
-    printf("Test String 1 Original: %s\n", testString1);
+    char* realTestString = malloc(len1);
+    realTestString = strcpy(realTestString,testString1);
+
+    char* realTestString2 = malloc(len2);
+    realTestString2 = strcpy(realTestString2,testString2);
+
+    printf("Test String 1 Original: %s\n", realTestString);
     printf("Test String 2 Original: %s\n", testString2);
 
-    syscall(SYS_CAPITALIZE_NUM, testString1, len1);
-    syscall(SYS_CAPITALIZE_NUM, testString2, len2);
+    syscall(SYS_CAPITALIZE_NUM, realTestString, len1);
+    syscall(SYS_CAPITALIZE_NUM, realTestString2, len2);
 
-    printf("Test String 1 Final: %s\n", testString1);
-    printf("Test String 2 Final: %s\n", testString2);
+    printf("Test String 1 Final: %s\n", realTestString);
+    printf("Test String 2 Final: %s\n", realTestString2);
+
+    free(realTestString);
+    free(realTestString2);
 
     
 }
