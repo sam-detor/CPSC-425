@@ -15,8 +15,8 @@ int main(void)
 {
     char* testString1 = "hello world!";
     char* testString2 = "Hi, ThERe #5!";
-    size_t len1 = strlen(testString1);
-    size_t len2 = strlen(testString2);
+    int len1 = strlen(testString1);
+    int len2 = strlen(testString2);
 
     //Copying test strings into malloc'ed strings that can be edited
     char* realTestString = malloc(len1); 

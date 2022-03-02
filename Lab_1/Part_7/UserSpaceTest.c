@@ -4,7 +4,7 @@
 
 #define SYS_CAPITALIZE_NUM (548)
 
-long my_syscall(long sys_num, char* string, size_t len)
+long my_syscall(long sys_num, char* string, int len)
 {
     long returnVal;
 
@@ -24,8 +24,8 @@ int main(void)
 {
     char* testString1 = "hello world!\n";
     char* testString2 = "Hi, ThERe #5!";
-    size_t len1 = strlen(testString1);
-    size_t len2 = strlen(testString2);
+    int len1 = strlen(testString1);
+    int len2 = strlen(testString2);
     
     //Copying test strings into malloc'ed strings that can be edited
     char* realTestString = malloc(len1);
