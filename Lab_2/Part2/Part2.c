@@ -22,7 +22,8 @@
 #define THRESHOLD (2)
 static uint32_t ledVal = 1;
 static uint32_t  timePassed = 0;
-static uint32_t val = 0;
+static uint32_t blinking = 1;
+static uint32_t state = 0;
 /*************************************************
 * function declarations
 *************************************************/
@@ -34,24 +35,26 @@ int main(void);
 
 void EXTI9_5_IRQHandler(void) //TODO
 {
-
     // Check if the interrupt came from exti0
     if (EXTI->PR & (1 << 7))
     {
         if(timePassed >= THRESHOLD)
         {
-           GPIOD->ODR = (ledVal << 12);
-
-            if (ledVal == 0x08) {
-            ledVal = 1;
+            state++;
+        }
+        else if (state > 10)
+        {
+            state = 0;
+            if(blinking == 1)
+            {
+                blinking = 0;
             }
-            else {
-                ledVal = (ledVal << 1);
+            else
+            {
+                blinking = 1;
+                ledVal = 1;
+                GPIOD->ODR = (ledVal << 12);
             }
-            //while(timePassed >= THRESHOLD)
-            //{
-
-            //}
         }
         EXTI->PR = (1 << 7);
             //GPIOC->ODR |= (1 << 7);
@@ -68,7 +71,7 @@ void TIM3_IRQHandler(void)
             TIM3->SR &= ~(1U << 0);
         }
     }
-    if(timePassed > 700)
+    if(timePassed > 800)
     {
         timePassed = 0;
         GPIOC->MODER |= (1 << 14); 
@@ -79,14 +82,27 @@ void TIM3_IRQHandler(void)
     timePassed++;  
 }
 
-void TIM4_IRQHandler(void)
+void TIM2_IRQHandler(void)
 {
+    
     // clear interrupt status
-    if (TIM4->DIER & 0x01) {
-        if (TIM4->SR & 0x01) {
-            TIM4->SR &= ~(1U << 0);
+    if (TIM2->DIER & 0x01) {
+        if (TIM2->SR & 0x01) {
+            TIM2->SR &= ~(1U << 0);
         }
-    }  
+    }
+    if(blinking == 1)
+    {
+        GPIOD->ODR = (ledVal << 12);
+
+        if (ledVal == 0x08) {
+            ledVal = 1;
+        }
+        else {
+            ledVal = (ledVal << 1);
+        }
+    }
+    
 }
 
 /*************************************************
@@ -110,22 +126,23 @@ int main(void)
     GPIOC->MODER |= 0x00000000;   // Make button an input
     GPIOC->PUPDR |= (1 << 15);
     GPIOC->PUPDR &= ~(1U << 14);
+    
     // enable SYSCFG clock (APB2ENR: bit 14)
     RCC->APB2ENR |= (1 << 14);
 
     // enable TIM3 clock (bit1)
     RCC->APB1ENR |= (1 << 1);
 
-    // enable TIM4 clock (bit2)
-    //RCC->APB1ENR |= (1 << 2);
+    // enable TIM2 clock (bit0)
+     RCC->APB1ENR |= (1 << 0);
 
     TIM3->PSC = 4999;
     TIM3->ARR = 50;
     TIM3->DIER |= (1 << 1); 
 
-    //TIM4->PSC = 4999;
-    //TIM4->ARR = 10000;
-    //TIM4->DIER |= (1 << 1); 
+    TIM2->PSC = 4999;
+    TIM2->ARR = 5000;
+    TIM2->DIER |= (1 << 0);
 
     /* tie push button at PA0 to EXTI7 */
     // EXTI0 can be configured for each GPIO module.
@@ -151,13 +168,13 @@ int main(void)
     // enable TIM2 IRQ from NVIC
     NVIC_EnableIRQ(TIM3_IRQn);
 
-    //NVIC_SetPriority(TIM4_IRQn, 1); // Priority level 2
+    NVIC_SetPriority(TIM2_IRQn, 2); // Priority level 2
     // enable TIM2 IRQ from NVIC
-    //NVIC_EnableIRQ(TIM4_IRQn);
+    NVIC_EnableIRQ(TIM2_IRQn);
 
     // Enable Timer 2 module (CEN, bit0)
     TIM3->CR1 |= (1 << 0);
-    //TIM4->CR1 |= (1 << 0);
+    TIM2->CR1 |= (1 << 0);
 
     while(1)
     {
