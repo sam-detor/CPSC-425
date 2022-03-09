@@ -1,25 +1,19 @@
 /*
- * timer.c
- *
- * author: Furkan Cayci
- * description:
- *   blinks LEDs one at a time using timer interrupt
+ *   blinks LEDs one at a time (green, orange, red, blue) using timer interrupt
  *   timer2 is used as the source, and it is setup
  *   to run at 10 kHz. LED blinking rate is set to
- *   1 second.
- *
- * timer and timer interrupt setup steps:
- *   1. Enable TIMx clock from RCC
- *   2. Set prescaler for the timer from PSC
- *   3. Set auto-reload value from ARR
- *   4. (optional) Enable update interrupt from DIER bit 0
- *   5. (optional) Enable TIMx interrupt from NVIC
- *   6. Enable TIMx module from CR1 bit 0
+ *   0.5 second.
+ * 
+ *   When user button connected to PA0 is pressed, sequence is pasued, whe
+ *   it is "unpressed", the led blinking sequence resumes from the green
+ * 
+ *   See lab report for sources
  */
 
 #include "stm32f4xx.h"
 #include "system_stm32f4xx.h"
 static uint32_t ledVal = 1;
+
 /*************************************************
 * function declarations
 *************************************************/
@@ -48,7 +42,9 @@ void TIM2_IRQHandler(void)
     }
 }
 
-
+/*************************************************
+* exti0 interrupt handler
+*************************************************/
 void EXTI0_IRQHandler(void)
 {
 
