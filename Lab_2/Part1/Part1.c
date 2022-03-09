@@ -57,10 +57,9 @@ void EXTI0_IRQHandler(void)
     {
         EXTI->PR = (1 << 0);
         while(!(EXTI->PR & (1 << 0)))
-        {  
+        {  //pause while button is being pressed, ie no falling edge trigger yet
         }
-        ledVal = 1;
-        GPIOD->ODR = (ledVal << 12);
+        ledVal = 1; //restart sequence
         EXTI->PR = (1 << 0);
         
     }
@@ -73,7 +72,7 @@ void EXTI0_IRQHandler(void)
 *************************************************/
 int main(void)
 {
-    /* set system clock to 168 Mhz */
+    /* set system clock to 100 Mhz */
     set_sysclk_to_100();
 
     // setup LEDs
@@ -96,17 +95,16 @@ int main(void)
 
     // Timer clock runs at ABP1 * 2
     //   since ABP1 is set to /4 of fCLK
-    //   thus 168M/4 * 2 = 84Mhz //nope 100M/4 * 2 = 50mHz
-    // set prescaler to 83999 //maybe 49999
+    //   thus 100M/4 * 2 = 50Mhz 
+    // set prescaler to 49999 
     //   it will increment counter every prescalar cycles
     // fCK_PSC / (PSC[15:0] + 1)
-    // 84 Mhz / 8399 + 1 = 10 khz timer clock speed
+    // 50 Mhz / 4999 + 1 = 10 khz timer clock speed
     TIM2->PSC = 4999;
 
-    // Set the auto-reload value to 10000
-    //   which should give 1 second timer interrupts
-    TIM2->ARR = 5000; //this theoreticall gives .12 second interupts,
-                      //but produced 0.5 second "light up times"
+    // Set the auto-reload value to 5000
+    //   which should give 0.5 second timer interrupts
+    TIM2->ARR = 5000;
                       
     // Update Interrupt Enable
     TIM2->DIER |= (1 << 0);
@@ -119,10 +117,9 @@ int main(void)
     //   Writing a 0b0000 to pin0 location ties PA0 to EXT0
     SYSCFG->EXTICR[0] |= 0x00000000; // Write 0000 to map PA0 to EXTI0
 
-    // Choose either rising edge trigger (RTSR) or falling edge trigger (FTSR)
-    EXTI->RTSR |= 0x00001;   // Enable rising edge trigger on EXTI0
+    EXTI->RTSR |= 0x00001;   // Enable rising edge trigger on EXTI0 (tells you when button is pressed)
     
-    EXTI->FTSR |= 0x00001;
+    EXTI->FTSR |= 0x00001;  //Enable falling edge trigger (tells you when button is unpressed)
 
     // Mask the used external interrupt numbers.
     EXTI->IMR |= 0x00001;    // Mask EXTI0

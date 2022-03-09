@@ -1,7 +1,7 @@
 TARGET = Part1
 SRCS = Part1.c
 
-LINKER_SCRIPT = ../../flash/STM32F411VETx_FLASH.ld
+LINKER_SCRIPT = ../flash/STM32F411VETx_FLASH.ld
 
 # Generate debug info
 DEBUG = 0
