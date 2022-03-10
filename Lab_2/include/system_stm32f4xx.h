@@ -45,7 +45,7 @@
 void __init_data(void);
 void __Reset_Handler(void);
 void SystemInit(void);
-void set_sysclk_to_168(void);
+void set_sysclk_to_100(void);
 /* bring main */
 extern int main(void);
 

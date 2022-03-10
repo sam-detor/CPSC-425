@@ -19,7 +19,6 @@ CFLAGS += $(CDEFS)
 CFLAGS += -mcpu=cortex-m4 -mthumb # processor setup
 CFLAGS += -O0 # optimization is off
 CFLAGS += -std=gnu11 # use GNU 11 standard
-CFLAGS += -g 
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2 # generate debug info

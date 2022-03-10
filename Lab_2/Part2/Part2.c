@@ -137,7 +137,7 @@ int main(void)
     //   Writing a 0b0010 to pin7 (bits 12-15) location ties PC7 to EXTI7
     SYSCFG->EXTICR[1] &= ~((1U << 12) | (1U << 13) | (1U << 14) | (1U << 15)); // Write 0010 to map PC7 to EXTI7
     SYSCFG->EXTICR[1] |= (1U << 13);
-    EXTI->FTSR |= (1 << 7);   // Enable rising edge trigger on EXTI0
+    EXTI->FTSR |= (1 << 7);   // Enable falling edge trigger on EXTI0
 
     // Mask the used external interrupt numbers.
     EXTI->IMR |= (1 << 7);    // Mask EXTI7
