@@ -34,6 +34,8 @@
 #define TEMPO_86 (0)
 #define TEMO_430 (1)
 #define TEMPO_780 (2)
+#define TWINKLE (0)
+#define MARY (1)
 
 //systik stuff
 static volatile uint32_t tDelay;
@@ -42,8 +44,10 @@ extern uint32_t SystemCoreClock;
 uint32_t playing = 1;
 uint32_t clicks = 0;
 uint32_t twinkle_note = 0;
-uint32_t itsy_note = 0;
-uint32_t songChoice = 0;
+uint32_t mary_note = 0;
+uint32_t songChoice = MARY;
+uint32_t mary_speed = 1;
+uint32_t twinkle_speed = 1;
 
 uint8_t twinkle[48] = {C5,C5,G5,G5,A5,A5,G5,Rest, 
                       F5,F5,E5,E5,D5,D5,C5, Rest, 
@@ -71,8 +75,9 @@ uint32_t note = 0;
 uint32_t len = MARY_LEN;
 uint8_t *song = mary;
 uint8_t *tempo = maryTempo;
+uint32_t speed = 1;
 
-enum processState {NO_PRESS, FIRST_PRESS, FIRST_PRESS_DEBOUNCE, FIRST_UNPRESS, FIRST_UNPRESS_DEBOUNCE, SECOND_PRESS, SECOND_PRESS_DEBOUNCE};
+enum processState {NO_PRESS, FIRST_PRESS, FIRST_PRESS_DEBOUNCE, FIRST_UNPRESS,FIRST_PRESS_DONE, SECOND_PRESS, SECOND_PRESS_DEBOUNCE, LONG_PRESS, LONG_PRESS_DONE};
 enum processState myState = NO_PRESS;
 
 /*************************************************
@@ -85,7 +90,8 @@ void init_cs43l22(uint8_t);
 void start_cs43l22();
 void init_systick(uint32_t s);
 void delay_ms(uint32_t);
-void playNote(uint8_t *song, uint8_t*tempo, uint8_t speed, uint32_t note);
+uint32_t getDelay (uint32_t speed);
+uint32_t getTempo (uint8_t tempo, uint32_t speed);
 
 /*************************************************
 * I2C related general functions
@@ -365,28 +371,22 @@ void init_systick(uint32_t s)
 }
 
 
-void TIM2_IRQHandler(void) //light up each led sequentitally, called every 0.5 seconds
+void TIM2_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
 {
-    //uint8_t tempo = 0;
-    // clear interrupt status
     if (TIM2->DIER & 0x01) {
         if (TIM2->SR & 0x01) {
             TIM2->SR &= ~(1U << 0);
         }
     }
-    GPIOD->ODR ^= (1 << 13);
-    if(myState == FIRST_UNPRESS)
+    if(myState == FIRST_PRESS_DEBOUNCE)
     {
-        //normal click code here
-        GPIOD->ODR ^= (1 << 12); //orange?
-        myState = NO_PRESS;
+        myState = LONG_PRESS;
+        GPIOD->ODR ^= (1 << 15); // toggle blue led
+        playing ^= 1; //toggle paused
     }
-   
-
-    
 }
 
-void TIM3_IRQHandler(void) //long timer
+void TIM3_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
 {
     
     // clear interrupt status
@@ -395,24 +395,64 @@ void TIM3_IRQHandler(void) //long timer
             TIM3->SR &= ~(1U << 0);
         }
     }
-   
-    if(myState == FIRST_PRESS_DEBOUNCE)
+    //GPIOD->ODR ^= (1 << 12);
+    if(myState == FIRST_UNPRESS)
     {
-        //long click code
+        myState = FIRST_PRESS_DONE;
+        TIM4->CR1 |= (1 << 0);
         GPIOD->ODR ^= (1 << 12); // toggle green led
-        myState = NO_PRESS;
+        if(songChoice == MARY)
+        {
+            mary_note = note;
+            mary_speed = speed;
+            note = twinkle_note;
+            len = TWINKLE_LEN;
+            song = twinkle;
+            tempo = twinkleTempo;
+            speed = twinkle_speed;
+            songChoice = TWINKLE;
+        } 
+        else
+        {
+            twinkle_note = note;
+            twinkle_speed = speed;
+            note = mary_note;
+            len = MARY_LEN;
+            song = mary;
+            tempo = maryTempo;
+            speed = mary_speed;
+            songChoice = MARY;
+        }
+
     }
 }
 
-void TIM4_IRQHandler(void)
+void TIM4_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
 {
+    
+    // clear interrupt status
     if (TIM4->DIER & 0x01) {
-    if (TIM4->SR & 0x01) {
-        TIM4->SR &= ~(1U << 0);
+        if (TIM4->SR & 0x01) {
+            TIM4->SR &= ~(1U << 0);
+        }
     }
+    //GPIOD->ODR ^= (1 << 13);
+    if (myState == FIRST_PRESS)
+    {
+        myState = FIRST_PRESS_DEBOUNCE;
     }
-
-    myState++;
+    else if (myState == SECOND_PRESS)
+    {
+        myState = SECOND_PRESS_DEBOUNCE;
+    }
+    else if (myState == FIRST_PRESS_DONE)
+    {
+        myState = NO_PRESS;
+    }
+    else if (myState == LONG_PRESS_DONE)
+    {
+        myState = NO_PRESS;
+    }
 }
 
 void EXTI0_IRQHandler(void)
@@ -424,24 +464,43 @@ void EXTI0_IRQHandler(void)
         EXTI->PR = (1 << 0); //set a timer, if it's not called before timer is done --> long press
         if(myState == NO_PRESS)
         {
-            TIM2->CR1 |= (1 << 0) | (1 << 3);//short timer
-            //TIM3->CR1 |= (1 << 0) | (1 << 3); //long timer
-            //TIM4->CR1 |= (1 << 0) | (1 << 3); //debounce timer
+            TIM3->CR1 |= (1 << 0);
+            TIM2->CR1 |= (1 << 0);
+            TIM4->CR1 |= (1 << 0);
             myState = FIRST_PRESS;
         }
-        else if(myState == FIRST_PRESS)
+        else if(myState == FIRST_PRESS_DEBOUNCE)
         {
             myState = FIRST_UNPRESS;
+            TIM2->CR1 &= ~(1U << 0);
+            TIM2->CNT = 0;
+        }
+        else if (myState == LONG_PRESS)
+        {
+            myState = LONG_PRESS_DONE;
+            TIM4->CR1 |= (1 << 0);
         }
         else if (myState == FIRST_UNPRESS)
         {
-            //double click code
-            GPIOD->ODR ^= (1 << 15); // blue led
+            GPIOD->ODR ^= (1 << 14);
+            myState = SECOND_PRESS;
+            TIM4->CR1 |= (1 << 0);
+
+            if(speed == 4)
+            {
+                speed = 1;
+            }
+            else
+            {
+                speed *= 2;
+            }
+        }
+        else if (myState == SECOND_PRESS_DEBOUNCE)
+        {
             myState = NO_PRESS;
         }
-    
+        
     }
-    
 
     return;
 }
@@ -550,12 +609,15 @@ int main(void)
     // enable SYSCFG clock (APB2ENR: bit 14)
     RCC->APB2ENR |= (1 << 14);
 
-    // enable TIM2 clock (bit0)
+    //TIM2 Set up
+    // enable TIM2 clock (bit2)
     RCC->APB1ENR |= (1 << 0);
 
-    TIM2->PSC = 4999; //set TIM2 prescalar
-    TIM2->ARR = 6000; //set auto refil value to 0.5 seconds
-    TIM2->DIER |= (1 << 0); //enable TIM2 interrupt
+    TIM2->PSC = 4999; //set TIM3 prescalar
+    TIM2->ARR = 10000; //set auto refil value to 1.1 seconds
+    TIM2->CR1 |= (1 << 3);
+    TIM2->DIER |= (1 << 0);  //enable TIM3 interrupt
+    TIM2->CR1 |= (1 << 2);
 
     //Button set up
     
@@ -578,58 +640,65 @@ int main(void)
     RCC->APB1ENR |= (1 << 1);
 
     TIM3->PSC = 4999; //set TIM3 prescalar
-    TIM3->ARR = 10000; //set auto refil value to 0.3 seconds
+    TIM3->ARR = 3000; //set auto refil value to 0.3 seconds
+    TIM3->CR1 |= (1 << 3);
     TIM3->DIER |= (1 << 0);  //enable TIM3 interrupt
+    TIM3->CR1 |= (1 << 2);
 
     //TIM4 Set up
-    // enable TIM3 clock (bit1)
     RCC->APB1ENR |= (1 << 2);
 
     TIM4->PSC = 4999; //set TIM3 prescalar
-    TIM4->ARR = 100; //set auto refil value to 0.3 seconds
+    TIM4->ARR = 150; //set auto refil value to 0.3 seconds
     TIM4->DIER |= (1 << 0);  //enable TIM3 interrupt
+    TIM4->CR1 |= (1 << 3);
+    TIM4->CR1 |= (1 << 2);
 
     // Set Priority for each interrupt request
-    NVIC_SetPriority(EXTI0_IRQn, 2); // Priority level 1
+    NVIC_SetPriority(EXTI0_IRQn, 1); // Priority level 1
     // enable EXT0 IRQ from NVIC
     NVIC_EnableIRQ(EXTI0_IRQn);
 
-    NVIC_SetPriority(TIM2_IRQn, 1); // Priority level 2
+    NVIC_SetPriority(TIM2_IRQn, 2); // Priority level 2
     // enable TIM2 IRQ from NVIC
     NVIC_EnableIRQ(TIM2_IRQn);
 
-    NVIC_SetPriority(TIM3_IRQn, 1); // Priority level 2
+    NVIC_SetPriority(TIM3_IRQn, 3); // Priority level 2
     // enable TIM3 IRQ from NVIC
     NVIC_EnableIRQ(TIM3_IRQn);
 
-    NVIC_SetPriority(TIM4_IRQn, 1); // Priority level 2
+    NVIC_SetPriority(TIM4_IRQn, 3); // Priority level 2
     // enable TIM3 IRQ from NVIC
     NVIC_EnableIRQ(TIM4_IRQn);
 
     // Enable Timer 2 and 3 module (CEN, bit0)
-    //TIM3->CR1 |= (1 << 0);
-    //TIM2->CR1 |= (1 << 0);
+    TIM3->CR1 |= (1 << 0);
+    TIM2->CR1 |= (1 << 0);
+    TIM4->CR1 |= (1 << 0);
     //i2c_write(CS43L22_REG_BEEP_TONE_CFG, (1 << 6));
     //i2c_write(CS43L22_REG_BEEP_FREQ_ON_TIME, 0x31);
     
     while(1)
-    {    
-        if(song[note])
-        {
-            i2c_write(CS43L22_REG_BEEP_TONE_CFG, 0x0);
-            i2c_write(CS43L22_REG_BEEP_FREQ_ON_TIME, song[note] | tempo[note]);
-            i2c_write(CS43L22_REG_BEEP_TONE_CFG, (1 << 6));
+    {
+        if(playing)  
+        { 
+            if(song[note])
+            {
+                i2c_write(CS43L22_REG_BEEP_TONE_CFG, 0x0);
+                i2c_write(CS43L22_REG_BEEP_FREQ_ON_TIME, song[note] | getTempo(tempo[note], speed));
+                i2c_write(CS43L22_REG_BEEP_TONE_CFG, (1 << 6));
+            }
+            if(note == len - 1) //changes array pos to next tone
+            {
+                note = 0;
+            }
+            else
+            {
+                note++;
+            }
+                
+            delay_ms(getDelay(speed)); // 0.5 sec delay
         }
-        if(note == len - 1) //changes array pos to next tone
-        {
-            note = 0;
-        }
-        else
-        {
-            note++;
-        }
-            
-        delay_ms(500); // 0.5 sec delay
     }
     return 0;
 }
@@ -641,6 +710,47 @@ void delay_ms(uint32_t s)
 {
     tDelay = s;
     while(tDelay != 0);
+}
+
+uint32_t getDelay (uint32_t speed)
+{
+    if(speed == 1)
+    {
+        return 1000;
+    }
+    else if (speed == 2)
+    {
+        return 500;
+    }
+    else if (speed == 4)
+    {
+        return 250;
+    }
+    
+}
+
+uint32_t getTempo (uint8_t tempo, uint32_t speed)
+{
+    if(speed == 1)
+    {
+        if(tempo)
+        {
+            return (1 << 1);
+        }
+        else
+        {
+            return (1 << 0);
+        }
+    }
+    else if (speed == 2)
+    {
+        return tempo;
+    }
+    else if (speed == 4)
+    {
+        return 0;
+    }
+    
 }
 
  
