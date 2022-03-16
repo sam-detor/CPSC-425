@@ -1,5 +1,5 @@
-TARGET = Part4
-SRCS = Part4.c
+TARGET = StateMachine
+SRCS = StateMachine.c
 
 LINKER_SCRIPT = ../flash/STM32F411VETx_FLASH.ld
 

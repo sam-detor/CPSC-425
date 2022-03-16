@@ -98,5 +98,5 @@ void set_sysclk_to_100(void)
 	while (!(RCC->CFGR & (2U << 2)));
 
 	// update SystemCoreClock variable
-	SystemCoreClock = 168000000;
+	SystemCoreClock = 100000000;
 }

@@ -13,7 +13,7 @@
 #include "system_stm32f4xx.h"
 #include "cs43l22.h"
 
-#define C6 (0x80)
+#define C6 (1 << 7)
 #define D6 (0x90)
 #define E6 (0xA0)
 #define F6 (0xB0)
@@ -21,19 +21,23 @@
 #define A6 (0xD0)
 #define B6 (0xE0)
 
-#define C5 (0x10)
-#define D5 (0x20)
-#define E5 (0x30)
-#define F5 (0x40)
-#define G5 (0x50)
-#define A5 (0x60)
-#define B5 (0x70)
+#define C5 (1 << 4)
+#define D5 (1 << 5)
+#define E5 ((1 << 4) | (1 << 5))
+#define F5 (1 << 6)
+#define G5 ((1 << 6) | (1 << 4))
+#define A5 ((1 << 6) | (1 << 5))
+#define B5 ((1 << 6) | (1 << 5) | (1 << 4))
 #define Rest (0x0)
 
 uint32_t playing = 1;
 uint32_t clicks = 0;
 uint32_t note = 0;
+uint32_t timerDone = 0;
+uint32_t doubleClick = 0;
 uint8_t newScale[8] = {C5, D5, E5, F5, G5, A5, B5, C6};
+enum processState {NO_PRESS, FIRST_PRESS, FIRST_PRESS_DEBOUNCE, SECOND_PRESS};
+enum processState myState = NO_PRESS;
 /*************************************************
 * function declarations
 *************************************************/
@@ -327,7 +331,25 @@ void TIM3_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
         }
     }
 
-    clicks = 0;
+    if(myState == FIRST_PRESS_DEBOUNCE)
+    {
+        playing ^= 1; //toggle paused
+        clicks++;
+        myState = NO_PRESS;
+    }
+}
+
+void TIM4_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
+{
+    
+    // clear interrupt status
+    if (TIM4->DIER & 0x01) {
+        if (TIM4->SR & 0x01) {
+            TIM4->SR &= ~(1U << 0);
+        }
+    }
+
+    myState = FIRST_PRESS_DEBOUNCE;
 }
 
 void EXTI0_IRQHandler(void)
@@ -336,19 +358,19 @@ void EXTI0_IRQHandler(void)
     // Check if the interrupt came from exti0
     if (EXTI->PR & (1 << 0))
     {
-        EXTI->PR = (1 << 0);
-        if(clicks)
+        EXTI->PR = (1 << 0); //set a timer, if it's not called before timer is done --> long press
+        if(myState == NO_PRESS)
         {
+            TIM3->CR1 |= (1 << 0) | (1 << 3);
+            TIM4->CR1 |= (1 << 0) | (1 << 3);
+            myState = FIRST_PRESS;
+        }
+        else if(myState == FIRST_PRESS_DEBOUNCE)
+        {
+            myState = NO_PRESS;
             note = 0;
             playing = 1;
         }
-        else
-        {
-            playing ^= 1; //toggle paused
-            clicks++;
-        }
-        
-        
     }
 
     return;
@@ -478,8 +500,15 @@ int main(void)
     RCC->APB1ENR |= (1 << 1);
 
     TIM3->PSC = 4999; //set TIM3 prescalar
-    TIM3->ARR = 150 * 50; //set auto refil value to 0.3 seconds
+    TIM3->ARR = 3000; //set auto refil value to 0.3 seconds
     TIM3->DIER |= (1 << 0);  //enable TIM3 interrupt
+
+    RCC->APB1ENR |= (1 << 2);
+
+    TIM4->PSC = 4999; //set TIM3 prescalar
+    TIM4->ARR = 100; //set auto refil value to 0.3 seconds
+    TIM4->DIER |= (1 << 0);  //enable TIM3 interrupt
+
 
     // Set Priority for each interrupt request
     NVIC_SetPriority(EXTI0_IRQn, 1); // Priority level 1
@@ -494,8 +523,11 @@ int main(void)
     // enable TIM3 IRQ from NVIC
     NVIC_EnableIRQ(TIM3_IRQn);
 
+    NVIC_SetPriority(TIM4_IRQn, 3); // Priority level 2
+    // enable TIM3 IRQ from NVIC
+    NVIC_EnableIRQ(TIM4_IRQn);
+
     // Enable Timer 2 and 3 module (CEN, bit0)
-    TIM3->CR1 |= (1 << 0);
     TIM2->CR1 |= (1 << 0);
     
     while(1)
