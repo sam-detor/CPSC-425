@@ -88,6 +88,8 @@ void EXTI0_IRQHandler(void)
         else if(myState == FIRST_PRESS_DEBOUNCE)
         {
             myState = FIRST_UNPRESS;
+            TIM2->CR1 &= ~(1U << 0);
+            TIM2->CNT = 0;
         }
         else if (myState == LONG_PRESS)
         {
