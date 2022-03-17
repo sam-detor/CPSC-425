@@ -77,7 +77,7 @@ uint8_t *song = mary;
 uint8_t *tempo = maryTempo;
 uint32_t speed = 1;
 
-enum processState {NO_PRESS, FIRST_PRESS, FIRST_PRESS_DEBOUNCE, FIRST_UNPRESS,FIRST_PRESS_DONE, SECOND_PRESS, SECOND_PRESS_DEBOUNCE, LONG_PRESS, LONG_PRESS_DONE};
+enum processState {NO_PRESS, FIRST_PRESS, FIRST_PRESS_DEBOUNCE, FIRST_UNPRESS, FIRST_UNPRESS_DEBOUNCE, FIRST_PRESS_DONE, SECOND_PRESS, SECOND_PRESS_DEBOUNCE, LONG_PRESS, LONG_PRESS_DONE};
 enum processState myState = NO_PRESS;
 
 /*************************************************
@@ -396,7 +396,7 @@ void TIM3_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
         }
     }
     //GPIOD->ODR ^= (1 << 12);
-    if(myState == FIRST_UNPRESS)
+    if(myState == FIRST_UNPRESS_DEBOUNCE)
     {
         myState = FIRST_PRESS_DONE;
         TIM4->CR1 |= (1 << 0);
@@ -453,6 +453,10 @@ void TIM4_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
     {
         myState = NO_PRESS;
     }
+    else if (myState == FIRST_UNPRESS)
+    {
+        myState = FIRST_UNPRESS_DEBOUNCE;
+    }
 }
 
 void EXTI0_IRQHandler(void)
@@ -464,7 +468,6 @@ void EXTI0_IRQHandler(void)
         EXTI->PR = (1 << 0); //set a timer, if it's not called before timer is done --> long press
         if(myState == NO_PRESS)
         {
-            TIM3->CR1 |= (1 << 0);
             TIM2->CR1 |= (1 << 0);
             TIM4->CR1 |= (1 << 0);
             myState = FIRST_PRESS;
@@ -474,13 +477,15 @@ void EXTI0_IRQHandler(void)
             myState = FIRST_UNPRESS;
             TIM2->CR1 &= ~(1U << 0);
             TIM2->CNT = 0;
+            TIM3->CR1 |= (1 << 0);
+            TIM4->CR1 |= (1 << 0);
         }
         else if (myState == LONG_PRESS)
         {
             myState = LONG_PRESS_DONE;
             TIM4->CR1 |= (1 << 0);
         }
-        else if (myState == FIRST_UNPRESS)
+        else if (myState == FIRST_UNPRESS_DEBOUNCE)
         {
             GPIOD->ODR ^= (1 << 14);
             myState = SECOND_PRESS;
@@ -649,7 +654,7 @@ int main(void)
     RCC->APB1ENR |= (1 << 2);
 
     TIM4->PSC = 4999; //set TIM3 prescalar
-    TIM4->ARR = 150; //set auto refil value to 0.3 seconds
+    TIM4->ARR = 125; //set auto refil value to 0.3 seconds
     TIM4->DIER |= (1 << 0);  //enable TIM3 interrupt
     TIM4->CR1 |= (1 << 3);
     TIM4->CR1 |= (1 << 2);
