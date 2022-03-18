@@ -12,15 +12,7 @@
 #include "stm32f4xx.h"
 #include "system_stm32f4xx.h"
 #include "cs43l22.h"
-
-#define C6 (1 << 7)
-#define D6 (0x90)
-#define E6 (0xA0)
-#define F6 (0xB0)
-#define G6 (0xC0)
-#define A6 (0xD0)
-#define B6 (0xE0)
-
+//Notes
 #define C5 (1 << 4)
 #define D5 (1 << 5)
 #define E5 ((1 << 4) | (1 << 5))
@@ -28,54 +20,61 @@
 #define G5 ((1 << 6) | (1 << 4))
 #define A5 ((1 << 6) | (1 << 5))
 #define B5 ((1 << 6) | (1 << 5) | (1 << 4))
-#define Rest (0x0)
+#define C6 (1 << 7)
+#define REST (0x0)
+//Tempo constants
+#define SHORT (0)
+#define LONG (1)
+
+//Song lengths
 #define TWINKLE_LEN (48)
 #define MARY_LEN (31)
-#define TEMPO_86 (0)
-#define TEMO_430 (1)
-#define TEMPO_780 (2)
+
+//Song codes
 #define TWINKLE (0)
 #define MARY (1)
 
-//systik stuff
+//systik variables
 static volatile uint32_t tDelay;
 extern uint32_t SystemCoreClock;
 
-uint32_t playing = 1;
-uint32_t clicks = 0;
-uint32_t twinkle_note = 0;
-uint32_t mary_note = 0;
-uint32_t songChoice = MARY;
-uint32_t mary_speed = 1;
-uint32_t twinkle_speed = 1;
+struct SongInfo 
+{
+    uint32_t note; 
+    uint32_t len;
+    uint8_t *song;
+    uint8_t *tempo;
+    uint32_t speed;
+    uint8_t songChoice;
+};
 
-uint8_t twinkle[48] = {C5,C5,G5,G5,A5,A5,G5,Rest, 
-                      F5,F5,E5,E5,D5,D5,C5, Rest, 
-                      G5,G5,F5,F5,E5,E5,D5, Rest,
-                      G5,G5,F5,F5,E5,E5,D5, Rest,
-                      C5,C5,G5,G5,A5,A5,G5, Rest,
-                      F5,F5,E5,E5,D5,D5,C5, Rest};
-uint8_t twinkleTempo[48] = {0,0,0,0,0,0,1,0, 
-                            0,0,0,0,0,0,1,0, 
-                            0,0,0,0,0,0,1,0,
-                            0,0,0,0,0,0,1,0,
-                            0,0,0,0,0,0,1,0,
-                            0,0,0,0,0,0,1,0};
-uint8_t mary[31] = {E5,D5,C5,D5,E5,E5,E5,Rest,
-                   D5,D5,D5,Rest,E5,G5,G5,Rest,
+uint8_t twinkle[48] = {C5,C5,G5,G5,A5,A5,G5,REST, 
+                      F5,F5,E5,E5,D5,D5,C5, REST, 
+                      G5,G5,F5,F5,E5,E5,D5, REST,
+                      G5,G5,F5,F5,E5,E5,D5, REST,
+                      C5,C5,G5,G5,A5,A5,G5, REST,
+                      F5,F5,E5,E5,D5,D5,C5, REST};
+uint8_t twinkleTempo[48] = {SHORT,SHORT,SHORT,SHORT,SHORT,SHORT,LONG,SHORT, 
+                            SHORT,SHORT,SHORT,SHORT,SHORT,SHORT,LONG,SHORT, 
+                            SHORT,SHORT,SHORT,SHORT,SHORT,SHORT,LONG,SHORT,
+                            SHORT,SHORT,SHORT,SHORT,SHORT,SHORT,LONG,SHORT,
+                            SHORT,SHORT,SHORT,SHORT,SHORT,SHORT,LONG,SHORT,
+                            SHORT,SHORT,SHORT,SHORT,SHORT,SHORT,LONG,SHORT};
+uint8_t mary[31] = {E5,D5,C5,D5,E5,E5,E5,REST,
+                   D5,D5,D5,REST,E5,G5,G5,REST,
                    E5,D5,C5,D5,E5,E5,E5,
-                   C5,D5,D5,E5,D5,C5,Rest};
+                   C5,D5,D5,E5,D5,C5,REST};
 
-uint8_t maryTempo[31] = {1,1,1,1,0,0,1,0,
-                        0,0,1,0,0,0,1,0,
-                        1,1,1,1,0,0,1,
-                        1,0,0,1,1,1,0};
+uint8_t maryTempo[31] = {LONG,LONG,LONG,LONG,SHORT,SHORT,LONG,SHORT,
+                        SHORT,SHORT,LONG,SHORT,SHORT,SHORT,LONG,SHORT,
+                        LONG,LONG,LONG,LONG,SHORT,SHORT,LONG,
+                        LONG,SHORT,SHORT,LONG,LONG,LONG,SHORT};
 
-uint32_t note = 0;
-uint32_t len = MARY_LEN;
-uint8_t *song = mary;
-uint8_t *tempo = maryTempo;
-uint32_t speed = 1;
+uint32_t playing = 1;
+
+struct SongInfo maryInfo = {0,MARY_LEN,mary,maryTempo, 1, MARY};
+struct SongInfo twinkleInfo = {0,TWINKLE_LEN,twinkle,twinkleTempo, 1, TWINKLE};
+struct SongInfo *currentInfo = &maryInfo;
 
 enum processState {NO_PRESS, FIRST_PRESS, FIRST_PRESS_DEBOUNCE, FIRST_UNPRESS, FIRST_UNPRESS_DEBOUNCE, FIRST_PRESS_DONE, SECOND_PRESS, SECOND_PRESS_DEBOUNCE, LONG_PRESS, LONG_PRESS_DONE};
 enum processState myState = NO_PRESS;
@@ -401,27 +400,13 @@ void TIM3_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
         myState = FIRST_PRESS_DONE;
         TIM4->CR1 |= (1 << 0);
         GPIOD->ODR ^= (1 << 12); // toggle green led
-        if(songChoice == MARY)
+        if(currentInfo->songChoice == MARY)
         {
-            mary_note = note;
-            mary_speed = speed;
-            note = twinkle_note;
-            len = TWINKLE_LEN;
-            song = twinkle;
-            tempo = twinkleTempo;
-            speed = twinkle_speed;
-            songChoice = TWINKLE;
+            currentInfo = &twinkleInfo;
         } 
         else
         {
-            twinkle_note = note;
-            twinkle_speed = speed;
-            note = mary_note;
-            len = MARY_LEN;
-            song = mary;
-            tempo = maryTempo;
-            speed = mary_speed;
-            songChoice = MARY;
+            currentInfo = &maryInfo;
         }
 
     }
@@ -491,13 +476,13 @@ void EXTI0_IRQHandler(void)
             myState = SECOND_PRESS;
             TIM4->CR1 |= (1 << 0);
 
-            if(speed == 4)
+            if(currentInfo->speed == 4)
             {
-                speed = 1;
+                currentInfo->speed = 1;
             }
             else
             {
-                speed *= 2;
+                currentInfo->speed *= 2;
             }
         }
         else if (myState == SECOND_PRESS_DEBOUNCE)
@@ -687,22 +672,22 @@ int main(void)
     {
         if(playing)  
         { 
-            if(song[note])
+            if((currentInfo->song)[currentInfo->note])
             {
                 i2c_write(CS43L22_REG_BEEP_TONE_CFG, 0x0);
-                i2c_write(CS43L22_REG_BEEP_FREQ_ON_TIME, song[note] | getTempo(tempo[note], speed));
+                i2c_write(CS43L22_REG_BEEP_FREQ_ON_TIME, (currentInfo->song)[currentInfo->note] | getTempo((currentInfo->tempo)[currentInfo->note], currentInfo->speed));
                 i2c_write(CS43L22_REG_BEEP_TONE_CFG, (1 << 6));
             }
-            if(note == len - 1) //changes array pos to next tone
+            if(currentInfo->note == currentInfo->len - 1) //changes array pos to next tone
             {
-                note = 0;
+                currentInfo->note = 0;
             }
             else
             {
-                note++;
+                (currentInfo->note)++;
             }
                 
-            delay_ms(getDelay(speed)); // 0.5 sec delay
+            delay_ms(getDelay(currentInfo->speed)); // 0.5 sec delay
         }
     }
     return 0;
