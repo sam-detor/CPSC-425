@@ -1,18 +1,19 @@
 /*
- * i2s-beep.c
+ *   Plays Mary Had a Little Lamb and Twinkle Twinkle Litte Star on loop from the 
+ *   headphone jack using the beep functionality of the CS43L22 Audio DAC
+ * 
+ *   When the user button is clicked once, song switches
+ *   When the user button is clicked twice, the song speed changes: 1x->2x->4x->1x...
+ *   When the user button is held for one second, the current song pauses, or resumes playing
  *
- * author: Furkan Cayci
- * description:
- *   talk to CS43L22 Audio DAC over I2C
- *   connected to I2C1 PB6, PB9
- *   setups CS43L22 to play 6 beep sounds from headphone jack
- *   Audio out is connected to I2S3
+ *   See lab report for sources
  */
 
 #include "stm32f4xx.h"
 #include "system_stm32f4xx.h"
 #include "cs43l22.h"
-//Notes
+
+//Note Definfitons 
 #define C5 (1 << 4)
 #define D5 (1 << 5)
 #define E5 ((1 << 4) | (1 << 5))
@@ -22,6 +23,7 @@
 #define B5 ((1 << 6) | (1 << 5) | (1 << 4))
 #define C6 (1 << 7)
 #define REST (0x0)
+
 //Tempo constants
 #define SHORT (0)
 #define LONG (1)
@@ -38,6 +40,7 @@
 static volatile uint32_t tDelay;
 extern uint32_t SystemCoreClock;
 
+//Song data structures
 struct SongInfo 
 {
     uint32_t note; 
@@ -45,8 +48,15 @@ struct SongInfo
     uint8_t *song;
     uint8_t *tempo;
     uint32_t speed;
+    uint8_t *speed_tempo_vals;
     uint8_t songChoice;
 };
+
+uint32_t delayValues[3] = {1000, 500, 250};
+
+uint8_t tempo1x[2] = {(1 << 0),(1 << 1)};
+uint8_t tempo2x[2] = {0,1};
+uint8_t tempo4x[2] = {0,0};
 
 uint8_t twinkle[48] = {C5,C5,G5,G5,A5,A5,G5,REST, 
                       F5,F5,E5,E5,D5,D5,C5, REST, 
@@ -72,11 +82,11 @@ uint8_t maryTempo[31] = {LONG,LONG,LONG,LONG,SHORT,SHORT,LONG,SHORT,
 
 uint32_t playing = 1;
 
-struct SongInfo maryInfo = {0,MARY_LEN,mary,maryTempo, 1, MARY};
-struct SongInfo twinkleInfo = {0,TWINKLE_LEN,twinkle,twinkleTempo, 1, TWINKLE};
+struct SongInfo maryInfo = {0,MARY_LEN,mary,maryTempo, 0, tempo1x, MARY};
+struct SongInfo twinkleInfo = {0,TWINKLE_LEN,twinkle,twinkleTempo, 0, tempo1x, TWINKLE};
 struct SongInfo *currentInfo = &maryInfo;
 
-enum processState {NO_PRESS, FIRST_PRESS, FIRST_PRESS_DEBOUNCE, FIRST_UNPRESS, FIRST_UNPRESS_DEBOUNCE, FIRST_PRESS_DONE, SECOND_PRESS, SECOND_PRESS_DEBOUNCE, LONG_PRESS, LONG_PRESS_DONE};
+enum processState {NO_PRESS, FIRST_PRESS, FIRST_PRESS_DEBOUNCE, FIRST_UNPRESS, FIRST_UNPRESS_DEBOUNCE, FIRST_PRESS_DONE, SECOND_PRESS, SECOND_PRESS_DEBOUNCE, SECOND_PRESS_DONE, LONG_PRESS, LONG_PRESS_DONE};
 enum processState myState = NO_PRESS;
 
 /*************************************************
@@ -89,9 +99,6 @@ void init_cs43l22(uint8_t);
 void start_cs43l22();
 void init_systick(uint32_t s);
 void delay_ms(uint32_t);
-uint32_t getDelay (uint32_t speed);
-uint32_t getTempo (uint8_t tempo, uint32_t speed);
-
 /*************************************************
 * I2C related general functions
 *************************************************/
@@ -369,15 +376,22 @@ void init_systick(uint32_t s)
     SysTick->CTRL |= (1 << 0);
 }
 
+/*************************************************
+* Timer handlers 
+*************************************************/
 
-void TIM2_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
+// Timer 2 is a one second timer which starts when the first press is registered
+//After one second, this handler is triggered and determines if the "unpress" 
+// of the first press has been registered. If it hasn't, the handler 
+//toggle the blue LED and pauses playback of the song
+void TIM2_IRQHandler(void)
 {
     if (TIM2->DIER & 0x01) {
         if (TIM2->SR & 0x01) {
             TIM2->SR &= ~(1U << 0);
         }
     }
-    if(myState == FIRST_PRESS_DEBOUNCE)
+    if(myState == FIRST_PRESS_DEBOUNCE) //state that implies it has been 12.5 ms since the first press
     {
         myState = LONG_PRESS;
         GPIOD->ODR ^= (1 << 15); // toggle blue led
@@ -385,7 +399,10 @@ void TIM2_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
     }
 }
 
-void TIM3_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
+//Timer 3 is a a 0.3 second timer that is called once the first "unpress" has been detected
+// If when this handler is triggered, a second click hasn't been registered, then the song
+// is switched
+void TIM3_IRQHandler(void)
 {
     
     // clear interrupt status
@@ -394,12 +411,14 @@ void TIM3_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
             TIM3->SR &= ~(1U << 0);
         }
     }
-    //GPIOD->ODR ^= (1 << 12);
+ 
     if(myState == FIRST_UNPRESS_DEBOUNCE)
     {
         myState = FIRST_PRESS_DONE;
-        TIM4->CR1 |= (1 << 0);
-        GPIOD->ODR ^= (1 << 12); // toggle green led
+        TIM4->CR1 |= (1 << 0); //Call debouncing timer
+        GPIOD->ODR ^= (1 << 12); //toggle green led
+        
+        //change song
         if(currentInfo->songChoice == MARY)
         {
             currentInfo = &twinkleInfo;
@@ -412,7 +431,10 @@ void TIM3_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
     }
 }
 
-void TIM4_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
+//Timer4 is a deboucing timer handler that triggers after 12.5ms
+// It changes the state of the program based on the current state to
+// indicate that the given state has been debounced
+void TIM4_IRQHandler(void)
 {
     
     // clear interrupt status
@@ -421,7 +443,7 @@ void TIM4_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
             TIM4->SR &= ~(1U << 0);
         }
     }
-    //GPIOD->ODR ^= (1 << 13);
+
     if (myState == FIRST_PRESS)
     {
         myState = FIRST_PRESS_DEBOUNCE;
@@ -442,52 +464,66 @@ void TIM4_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
     {
         myState = FIRST_UNPRESS_DEBOUNCE;
     }
+    else if (myState == SECOND_PRESS_DONE)
+    {
+        myState = NO_PRESS;
+    }
 }
 
+//Handler that is triggered whenver the user button is pressed or un-pressed
 void EXTI0_IRQHandler(void)
 {
 
     // Check if the interrupt came from exti0
     if (EXTI->PR & (1 << 0))
     {
-        EXTI->PR = (1 << 0); //set a timer, if it's not called before timer is done --> long press
-        if(myState == NO_PRESS)
+        EXTI->PR = (1 << 0); //clears the interrupt
+        if(myState == NO_PRESS) //if this is the first click to register
         {
-            TIM2->CR1 |= (1 << 0);
-            TIM4->CR1 |= (1 << 0);
+            TIM2->CR1 |= (1 << 0); //enable the long press timer
+            TIM4->CR1 |= (1 << 0); //enable the debouncing timer
             myState = FIRST_PRESS;
         }
-        else if(myState == FIRST_PRESS_DEBOUNCE)
+        else if(myState == FIRST_PRESS_DEBOUNCE) //if an un-press has been registered
         {
             myState = FIRST_UNPRESS;
-            TIM2->CR1 &= ~(1U << 0);
-            TIM2->CNT = 0;
-            TIM3->CR1 |= (1 << 0);
-            TIM4->CR1 |= (1 << 0);
+            TIM2->CR1 &= ~(1U << 0); //stop the long timer
+            TIM2->CNT = 0;           //clear the long timer counter
+            TIM3->CR1 |= (1 << 0); //enable the short click timer
+            TIM4->CR1 |= (1 << 0); //enable the deboucing timer
         }
-        else if (myState == LONG_PRESS)
+        else if (myState == LONG_PRESS) //if the un-press from a long press has been detected
         {
-            myState = LONG_PRESS_DONE;
-            TIM4->CR1 |= (1 << 0);
+            myState = LONG_PRESS_DONE; //this is to make sure directly after a long press has been detected, that the
+            TIM4->CR1 |= (1 << 0);     //state of the program not be affected by triggeres of this handler for 12.5ms
         }
-        else if (myState == FIRST_UNPRESS_DEBOUNCE)
+        else if (myState == FIRST_UNPRESS_DEBOUNCE) //if a second press has been detected
         {
-            GPIOD->ODR ^= (1 << 14);
+            GPIOD->ODR ^= (1 << 14); //toggle red led
             myState = SECOND_PRESS;
-            TIM4->CR1 |= (1 << 0);
+            TIM4->CR1 |= (1 << 0); // call the debouncing timer
 
-            if(currentInfo->speed == 4)
+            //change the speed of the song
+            if(currentInfo->speed == 2)
             {
-                currentInfo->speed = 1;
+                currentInfo->speed = 0;
+                currentInfo->speed_tempo_vals = tempo1x;
+            }
+            else if(currentInfo->speed == 1)
+            {
+                currentInfo->speed = 2;
+                currentInfo->speed_tempo_vals = tempo4x;
             }
             else
             {
-                currentInfo->speed *= 2;
+                currentInfo->speed = 1;
+                currentInfo->speed_tempo_vals = tempo2x;
             }
         }
-        else if (myState == SECOND_PRESS_DEBOUNCE)
+        else if (myState == SECOND_PRESS_DEBOUNCE) //if the un-press of the second click has been detected
         {
-            myState = NO_PRESS;
+            myState = SECOND_PRESS_DONE;
+            TIM4->CR1 |= (1 << 0); // call the debouncing timer
         }
         
     }
@@ -589,25 +625,11 @@ int main(void)
     }
 
     // beep volume
-    uint8_t vol = 7; //0x1C; // -6 - 12*2 dB
+    uint8_t vol = 7;
     i2c_write(CS43L22_REG_BEEP_VOL_OFF_TIME, vol);
 
     //headphone volume
     i2c_write(CS43L22_REG_HEADPHONE_A_VOL, 0xC1);
-
-    // TIM2 SET UP
-    // enable SYSCFG clock (APB2ENR: bit 14)
-    RCC->APB2ENR |= (1 << 14);
-
-    //TIM2 Set up
-    // enable TIM2 clock (bit2)
-    RCC->APB1ENR |= (1 << 0);
-
-    TIM2->PSC = 4999; //set TIM3 prescalar
-    TIM2->ARR = 10000; //set auto refil value to 1.1 seconds
-    TIM2->CR1 |= (1 << 3);
-    TIM2->DIER |= (1 << 0);  //enable TIM3 interrupt
-    TIM2->CR1 |= (1 << 2);
 
     //Button set up
     
@@ -625,24 +647,40 @@ int main(void)
     // Mask the used external interrupt numbers.
     EXTI->IMR |= 0x00001;    // Mask EXTI0
 
+    // Timer set up
+
+    // enable SYSCFG clock (APB2ENR: bit 14)
+    RCC->APB2ENR |= (1 << 14);
+
+    //TIM2 Set up
+    // enable TIM2 clock (bit 0)
+    RCC->APB1ENR |= (1 << 0);
+
+    TIM2->PSC = 4999; //set TIM2 prescalar
+    TIM2->ARR = 10000; //set auto refil value to 1 seconds
+    TIM2->CR1 |= (1 << 3); //set timer to one pulse mode
+    TIM2->DIER |= (1 << 0);  //enable TIM2 interrupt
+    TIM2->CR1 |= (1 << 2); //set timer to only trigger on counter overflow
+
+
     //TIM3 Set up
-    // enable TIM3 clock (bit1)
+    // enable TIM3 clock (bit 1)
     RCC->APB1ENR |= (1 << 1);
 
     TIM3->PSC = 4999; //set TIM3 prescalar
     TIM3->ARR = 3000; //set auto refil value to 0.3 seconds
-    TIM3->CR1 |= (1 << 3);
-    TIM3->DIER |= (1 << 0);  //enable TIM3 interrupt
-    TIM3->CR1 |= (1 << 2);
+    TIM3->CR1 |= (1 << 3); //set timer to one pulse mode
+    TIM3->DIER |= (1 << 0); //enable TIM3 interrupt
+    TIM3->CR1 |= (1 << 2); //set timer to only trigger on counter overflow
 
     //TIM4 Set up
     RCC->APB1ENR |= (1 << 2);
 
-    TIM4->PSC = 4999; //set TIM3 prescalar
-    TIM4->ARR = 125; //set auto refil value to 0.3 seconds
-    TIM4->DIER |= (1 << 0);  //enable TIM3 interrupt
-    TIM4->CR1 |= (1 << 3);
-    TIM4->CR1 |= (1 << 2);
+    TIM4->PSC = 4999; //set TIM4 prescalar
+    TIM4->ARR = 125; //set auto refil value to 12.5ms
+    TIM4->DIER |= (1 << 0);  //enable TIM4 interrupt
+    TIM4->CR1 |= (1 << 3); //set timer to one pulse mode
+    TIM4->CR1 |= (1 << 2); //set timer to only trigger on counter overflow
 
     // Set Priority for each interrupt request
     NVIC_SetPriority(EXTI0_IRQn, 1); // Priority level 1
@@ -653,32 +691,36 @@ int main(void)
     // enable TIM2 IRQ from NVIC
     NVIC_EnableIRQ(TIM2_IRQn);
 
-    NVIC_SetPriority(TIM3_IRQn, 3); // Priority level 2
+    NVIC_SetPriority(TIM3_IRQn, 3); // Priority level 3
     // enable TIM3 IRQ from NVIC
     NVIC_EnableIRQ(TIM3_IRQn);
 
-    NVIC_SetPriority(TIM4_IRQn, 3); // Priority level 2
-    // enable TIM3 IRQ from NVIC
+    NVIC_SetPriority(TIM4_IRQn, 3); // Priority level 3
+    // enable TIM4 IRQ from NVIC
     NVIC_EnableIRQ(TIM4_IRQn);
 
-    // Enable Timer 2 and 3 module (CEN, bit0)
+    // Enable Timer 2, 3, and 4 module (CEN, bit0)
     TIM3->CR1 |= (1 << 0);
     TIM2->CR1 |= (1 << 0);
     TIM4->CR1 |= (1 << 0);
-    //i2c_write(CS43L22_REG_BEEP_TONE_CFG, (1 << 6));
-    //i2c_write(CS43L22_REG_BEEP_FREQ_ON_TIME, 0x31);
+    
     
     while(1)
     {
-        if(playing)  
+        //store frequently used values in local variables for easier readability
+        uint32_t myNote = currentInfo->note;
+        uint8_t myTempo = (currentInfo->tempo)[myNote];
+        if(playing) //if the song is not paused
         { 
-            if((currentInfo->song)[currentInfo->note])
+            if((currentInfo->song)[myNote]) //if the note is not a rest
             {
-                i2c_write(CS43L22_REG_BEEP_TONE_CFG, 0x0);
-                i2c_write(CS43L22_REG_BEEP_FREQ_ON_TIME, (currentInfo->song)[currentInfo->note] | getTempo((currentInfo->tempo)[currentInfo->note], currentInfo->speed));
-                i2c_write(CS43L22_REG_BEEP_TONE_CFG, (1 << 6));
+                i2c_write(CS43L22_REG_BEEP_TONE_CFG, 0x0); //disables beep
+                i2c_write(CS43L22_REG_BEEP_FREQ_ON_TIME, (currentInfo->song)[myNote] | currentInfo->speed_tempo_vals[myTempo]); //configures the on-time and frequncy of the beep
+                i2c_write(CS43L22_REG_BEEP_TONE_CFG, (1 << 6)); //enables beep in "single beep" mode
             }
-            if(currentInfo->note == currentInfo->len - 1) //changes array pos to next tone
+
+            //changes array pos to next note
+            if(myNote == currentInfo->len - 1) 
             {
                 currentInfo->note = 0;
             }
@@ -686,8 +728,8 @@ int main(void)
             {
                 (currentInfo->note)++;
             }
-                
-            delay_ms(getDelay(currentInfo->speed)); // 0.5 sec delay
+            //delays between notes (dependent on current playback speed)    
+            delay_ms(delayValues[currentInfo->speed]);
         }
     }
     return 0;
@@ -701,46 +743,3 @@ void delay_ms(uint32_t s)
     tDelay = s;
     while(tDelay != 0);
 }
-
-uint32_t getDelay (uint32_t speed)
-{
-    if(speed == 1)
-    {
-        return 1000;
-    }
-    else if (speed == 2)
-    {
-        return 500;
-    }
-    else if (speed == 4)
-    {
-        return 250;
-    }
-    
-}
-
-uint32_t getTempo (uint8_t tempo, uint32_t speed)
-{
-    if(speed == 1)
-    {
-        if(tempo)
-        {
-            return (1 << 1);
-        }
-        else
-        {
-            return (1 << 0);
-        }
-    }
-    else if (speed == 2)
-    {
-        return tempo;
-    }
-    else if (speed == 4)
-    {
-        return 0;
-    }
-    
-}
-
- 

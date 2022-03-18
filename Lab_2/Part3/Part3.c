@@ -1,26 +1,19 @@
 /*
- * i2s-beep.c
+ *   Plays a scale starting at C5 on loop from the headphone jack 
+ *   using the beep functionality of the CS43L22 Audio DAC
+ * 
+ *   When the user button is clicked once, the scale pauses and holds
+ *   the current note indefinitely. When the user button is clicked twice
+ *   the scale restarts from C5
  *
- * author: Furkan Cayci
- * description:
- *   talk to CS43L22 Audio DAC over I2C
- *   connected to I2C1 PB6, PB9
- *   setups CS43L22 to play 6 beep sounds from headphone jack
- *   Audio out is connected to I2S3
+ *   See lab report for sources
  */
 
 #include "stm32f4xx.h"
 #include "system_stm32f4xx.h"
 #include "cs43l22.h"
 
-#define C6 (1 << 7)
-#define D6 (0x90)
-#define E6 (0xA0)
-#define F6 (0xB0)
-#define G6 (0xC0)
-#define A6 (0xD0)
-#define B6 (0xE0)
-
+//Note definitions
 #define C5 (1 << 4)
 #define D5 (1 << 5)
 #define E5 ((1 << 4) | (1 << 5))
@@ -28,10 +21,10 @@
 #define G5 ((1 << 6) | (1 << 4))
 #define A5 ((1 << 6) | (1 << 5))
 #define B5 ((1 << 6) | (1 << 5) | (1 << 4))
+#define C6 (1 << 7)
 #define Rest (0x0)
 
 uint32_t playing = 1;
-uint32_t clicks = 0;
 uint32_t note = 0;
 uint32_t timerDone = 0;
 uint32_t doubleClick = 0;
@@ -295,7 +288,7 @@ void I2C1_ER_IRQHandler(){
     GPIOD->ODR |= (1 << 14); // red LED
 }
 
-void TIM2_IRQHandler(void) //light up each led sequentitally, called every 0.5 seconds
+void TIM2_IRQHandler(void) //play the notes in the scale array on loop, called every 0.5 seconds
 {
     
     // clear interrupt status
@@ -304,13 +297,13 @@ void TIM2_IRQHandler(void) //light up each led sequentitally, called every 0.5 s
             TIM2->SR &= ~(1U << 0);
         }
     }
-    if(playing == 1) //only light up if sequence isn't paused
+    if(playing == 1) //only change the note if scale isn't paused
     {
             i2c_write(CS43L22_REG_BEEP_TONE_CFG, 0x0);
             i2c_write(CS43L22_REG_BEEP_FREQ_ON_TIME, newScale[note]);
-            i2c_write(CS43L22_REG_BEEP_TONE_CFG, 0xE0);
+            i2c_write(CS43L22_REG_BEEP_TONE_CFG, 0xE0); //enable a continous beep
 
-            if(note == 7) //changes array pos to next tone
+            if(note == 7) //changes array pos to next note
             {
                 note = 0;
             }
@@ -321,7 +314,7 @@ void TIM2_IRQHandler(void) //light up each led sequentitally, called every 0.5 s
     }    
 }
 
-void TIM3_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
+void TIM3_IRQHandler(void) //triggers after 0.3 seconds, pauses the sequence if no second click has been registered
 {
     
     // clear interrupt status
@@ -334,13 +327,14 @@ void TIM3_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
     if(myState == FIRST_PRESS_DEBOUNCE)
     {
         playing ^= 1; //toggle paused
-        clicks++;
-        myState = NO_PRESS;
+        myState = NO_PRESS; //reset program state
     }
 }
 
-void TIM4_IRQHandler(void) //refresh the charge on PC7 every .3 seconds
-{
+//timer that triggers after 10ms, makes sure that the program state is not affected
+//by interrupt triggers that happen less that 10ms after the first click is registerd
+void TIM4_IRQHandler(void) 
+{                          
     
     // clear interrupt status
     if (TIM4->DIER & 0x01) {
@@ -358,17 +352,17 @@ void EXTI0_IRQHandler(void)
     // Check if the interrupt came from exti0
     if (EXTI->PR & (1 << 0))
     {
-        EXTI->PR = (1 << 0); //set a timer, if it's not called before timer is done --> long press
+        EXTI->PR = (1 << 0); //clear the interrupt
         if(myState == NO_PRESS)
         {
-            TIM3->CR1 |= (1 << 0) | (1 << 3);
-            TIM4->CR1 |= (1 << 0) | (1 << 3);
+            TIM3->CR1 |= (1 << 0) | (1 << 3); //calls the "first click" timert
+            TIM4->CR1 |= (1 << 0) | (1 << 3); //calls the debouncing timer
             myState = FIRST_PRESS;
         }
-        else if(myState == FIRST_PRESS_DEBOUNCE)
+        else if(myState == FIRST_PRESS_DEBOUNCE) //detects if there was a second click after 10ms 
         {
-            myState = NO_PRESS;
-            note = 0;
+            myState = NO_PRESS; //resets program state
+            note = 0; //restarts and plays scale
             playing = 1;
         }
     }
@@ -462,27 +456,13 @@ int main(void)
     }
 
     // beep volume
-    uint8_t vol = 7;//0x1C; //0x1C; // -6 - 12*2 dB
+    uint8_t vol = 7;
     i2c_write(CS43L22_REG_BEEP_VOL_OFF_TIME, vol);
 
     //headphone volume
     i2c_write(CS43L22_REG_HEADPHONE_A_VOL, 0xC1);
 
-    i2c_write(CS43L22_REG_BEEP_TONE_CFG, 0xC0); //set beeps to continous
-
-    // TIM2 SET UP
-    // enable SYSCFG clock (APB2ENR: bit 14)
-    RCC->APB2ENR |= (1 << 14);
-
-    // enable TIM2 clock (bit0)
-    RCC->APB1ENR |= (1 << 0);
-
-    TIM2->PSC = 4999; //set TIM2 prescalar
-    TIM2->ARR = 5000; //set auto refil value to 0.5 seconds
-    TIM2->DIER |= (1 << 0); //enable TIM2 interrupt
-
     //Button set up
-    
     // enable GPIOA clock (AHB1ENR: bit 0)
     RCC->AHB1ENR |= (1 << 0);
     GPIOA->MODER &= 0xFFFFFFFC;   // Reset bits 0-1 to clear old values
@@ -491,23 +471,37 @@ int main(void)
     SYSCFG->EXTICR[0] |= 0x00000000; // Write 0000 to map PA0 to EXTI0
 
     EXTI->RTSR |= 0x00001;   // Enable rising edge trigger on EXTI0 (tells you when button is pressed)
-
-     // Mask the used external interrupt numbers.
+    
+    // Mask the used external interrupt numbers.
     EXTI->IMR |= 0x00001;    // Mask EXTI0
 
-    //TIM3 Set up
-    // enable TIM3 clock (bit1)
+
+    // enable SYSCFG clock (APB2ENR: bit 14)
+    RCC->APB2ENR |= (1 << 14);
+
+    //Timers set up
+    // enable TIM2 clock (bit 0)
+    RCC->APB1ENR |= (1 << 0);
+
+    // TIM2 SET UP
+    TIM2->PSC = 4999; //set TIM2 prescalar
+    TIM2->ARR = 5000; //set auto refil value to 0.5 seconds
+    TIM2->DIER |= (1 << 0); //enable TIM2 interrupt
+    
+    // enable TIM3 clock (bit 1)
     RCC->APB1ENR |= (1 << 1);
 
+    //TIM3 Set up
     TIM3->PSC = 4999; //set TIM3 prescalar
     TIM3->ARR = 3000; //set auto refil value to 0.3 seconds
     TIM3->DIER |= (1 << 0);  //enable TIM3 interrupt
 
+    // enable TIM4 clock (bit 2)
     RCC->APB1ENR |= (1 << 2);
 
-    TIM4->PSC = 4999; //set TIM3 prescalar
-    TIM4->ARR = 100; //set auto refil value to 0.3 seconds
-    TIM4->DIER |= (1 << 0);  //enable TIM3 interrupt
+    TIM4->PSC = 4999; //set TIM4 prescalar
+    TIM4->ARR = 100; //set auto refil value to 10 ms
+    TIM4->DIER |= (1 << 0);  //enable TIM4 interrupt
 
 
     // Set Priority for each interrupt request
@@ -519,15 +513,15 @@ int main(void)
     // enable TIM2 IRQ from NVIC
     NVIC_EnableIRQ(TIM2_IRQn);
 
-    NVIC_SetPriority(TIM3_IRQn, 3); // Priority level 2
+    NVIC_SetPriority(TIM3_IRQn, 3); // Priority level 3
     // enable TIM3 IRQ from NVIC
     NVIC_EnableIRQ(TIM3_IRQn);
 
-    NVIC_SetPriority(TIM4_IRQn, 3); // Priority level 2
-    // enable TIM3 IRQ from NVIC
+    NVIC_SetPriority(TIM4_IRQn, 3); // Priority level 3
+    // enable TIM4 IRQ from NVIC
     NVIC_EnableIRQ(TIM4_IRQn);
 
-    // Enable Timer 2 and 3 module (CEN, bit0)
+    // Enable Timer 2 module (CEN, bit0)
     TIM2->CR1 |= (1 << 0);
     
     while(1)
