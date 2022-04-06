@@ -1,0 +1,15 @@
+[package]
+name = "part2_cargo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+cortex-m = "0.6.1"
+cortex-m-rt = "0.6.10"
+stm32f4 = {version = "0.8.0", features = ["stm32f411", "rt"]}
+nb = "0.1.2"
+bare-metal = {version = "0.2.5", features = ["const-fn"]}
+embedded-hal = {version = "0.2.3", features = ["unproven"]}
+
+panic-halt = "0.2.0"
