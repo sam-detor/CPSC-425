@@ -1,6 +1,0 @@
-cargo:rustc-link-lib=static=cortex-m-rt
-cargo:rustc-cfg=cortex_m
-cargo:rustc-cfg=armv7m
-cargo:rustc-link-search=/Users/samdetor/CPSC-425/CPSC-425/Lab_3/Part1/part2_cargo/target/thumbv7em-none-eabi/debug/build/cortex-m-rt-e451d22d4731d2e0/out
-cargo:rerun-if-changed=build.rs
-cargo:rerun-if-changed=link.x.in

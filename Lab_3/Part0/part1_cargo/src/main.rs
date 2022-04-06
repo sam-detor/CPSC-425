@@ -58,7 +58,7 @@ fn main() {
     for handle in handles {
         handle.join().unwrap();
     }
-
+    
     let primes_clone = Arc::clone(&primes);
     let primes_final = primes_clone.lock().unwrap();
     println!("Primes smaller than {}: {}", n, *primes_final);

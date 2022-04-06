@@ -1,12 +1,7 @@
 [build]
 target = "thumbv7em-none-eabi"
 
-[run]
-target = "thumbv7em-none-eabi"
-
-
 [target.thumbv7em-none-eabi]
-runner = "arm-none-abi-gdb -q"
 rustflags = [
   "-C", "link-arg=-Tlink.x",
 ]
