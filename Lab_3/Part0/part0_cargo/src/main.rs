@@ -75,7 +75,8 @@ fn main() {
     let sieve_clone = Arc::clone(&sieve);
     let mut my_primes_clone = primes_clone.lock().unwrap();
     let mut my_sieve_clone = sieve_clone.lock().unwrap();
-
+    
+    //traverse the rest of the array to find all other primes greater than sqrt(n)
     for i in square_root..n {
         if my_sieve_clone[i as usize] {
             *my_primes_clone += 1;
