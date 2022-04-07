@@ -43,7 +43,7 @@ fn main() {
         let handle = thread::spawn(move || {
             let mut my_num = start + 2; //0 and 1 are not primes
             let mut primes_recorded = 0;
-            while my_num < new_n {
+            while (my_num * my_num) < new_n {
                 //get acess to sieve array
                 let mut my_sieve_clone = sieve_clone.lock().unwrap();
                 if my_sieve_clone[my_num as usize] {
@@ -70,9 +70,19 @@ fn main() {
         handle.join().unwrap();
     }
 
+    let square_root = ((n as f64).sqrt().floor() as u32) + 1;
     let primes_clone = Arc::clone(&primes);
-    let primes_final = primes_clone.lock().unwrap();
-    println!("Primes smaller than {}: {}", n, *primes_final);
+    let sieve_clone = Arc::clone(&sieve);
+    let mut my_primes_clone = primes_clone.lock().unwrap();
+    let mut my_sieve_clone = sieve_clone.lock().unwrap();
+
+    for i in square_root..n {
+        if my_sieve_clone[i as usize] {
+            *my_primes_clone += 1;
+        }
+    }
+
+    println!("Primes smaller than {}: {}", n, *my_primes_clone);
     println!("Time taken: {} ns", now.elapsed().as_nanos());
     return;
 }
