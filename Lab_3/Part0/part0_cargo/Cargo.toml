@@ -1,5 +1,5 @@
 [package]
-name = "part1_cargo"
+name = "part0_cargo"
 version = "0.1.0"
 edition = "2021"
 
