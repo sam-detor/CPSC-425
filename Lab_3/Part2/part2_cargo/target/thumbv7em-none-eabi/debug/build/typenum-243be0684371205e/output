@@ -1,0 +1,2 @@
+cargo:rustc-env=TYPENUM_BUILD_CONSTS=/Users/samdetor/CPSC-425/CPSC-425/Lab_3/Part2/part2_cargo/target/thumbv7em-none-eabi/debug/build/typenum-243be0684371205e/out/consts.rs
+cargo:rustc-env=TYPENUM_BUILD_OP=/Users/samdetor/CPSC-425/CPSC-425/Lab_3/Part2/part2_cargo/target/thumbv7em-none-eabi/debug/build/typenum-243be0684371205e/out/op.rs

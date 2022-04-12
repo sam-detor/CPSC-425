@@ -1,0 +1,3 @@
+cargo:rustc-link-search=/Users/samdetor/CPSC-425/CPSC-425/Lab_4/Part1/part1_cargo/target/thumbv7em-none-eabi/debug/build/stm32f4-f253b9bbd2c9c684/out
+cargo:rerun-if-changed=src/stm32f411/device.x
+cargo:rerun-if-changed=build.rs
