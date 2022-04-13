@@ -31,22 +31,22 @@ fn main() -> ! {
     let cortexm_peripherals = cortex_m::Peripherals::take().unwrap();
     let stm32f4_peripherals = stm32f411::Peripherals::take().unwrap();
 
-    // Enabling GPIOC, GPIOD and SYSCFG clocks
+    // Enabling GPIOD and SYSCFG clocks
     let rcc = &stm32f4_peripherals.RCC;
     rcc.ahb1enr.write(|w| w.gpioden().set_bit());
     rcc.apb2enr.write(|w| w.syscfgen().set_bit());
 
-    //Enable tim3 and tim4 clocks
+    //Enable tim3 clock
     rcc.apb1enr.write(|w| w.tim3en().set_bit());
 
-    //get access to timers
+    //get access to timer
     let tim3 = &stm32f4_peripherals.TIM3;
 
-    //set prescalar values
+    //set prescalar value
     //to turn an 8mHz clock into 1ms intervals
     tim3.psc.write(|w| w.psc().bits(15999));
 
-    //set auto refil values
+    //set auto refil value
     tim3.arr.write(|w| w.arr().bits(1000));
 
     //enable interrupts
@@ -65,7 +65,7 @@ fn main() -> ! {
             .replace(Some(stm32f4_peripherals.GPIOD));
     });
 
-    // 7. Enable EXTI7 Interrupt
+    // 7. Enable TIM3 Interrupt
     let mut nvic = cortexm_peripherals.NVIC;
     unsafe {
         nvic.set_priority(Interrupt::TIM3, 2);
@@ -75,29 +75,31 @@ fn main() -> ! {
 
     // Move shared peripherals into mutexes
     cortex_m::interrupt::free(|cs| {
-        //set up stack
-        let mut led_state: u32 = 0x0;
-        let mut stack_prt: u32 = STACK_POINTER.borrow(cs).get();
 
+        let led_state: u32 = 0x0;
+        let mut stack_prt: u32 = STACK_POINTER.borrow(cs).get();
+        let old_stack_prt = cortex_m::register::msp::read();
+
+        //setting up the stack
         unsafe {
             asm!(
-               "MRS {old_stack_prt}, MSP",
                "MSR MSP, {stack_prt}",
                "PUSH {{{led_state}}}",
                 "MRS {stack_prt}, MSP",
                 "MSR MSP, {old_stack_prt}",
                 stack_prt = inout(reg) stack_prt,
                 led_state = in(reg) led_state,
-                old_stack_prt = out(reg) _,
+                old_stack_prt = in(reg) old_stack_prt,
 
             );
         }
         STACK_POINTER.borrow(cs).set(stack_prt);
     });
-    //enabling the timers
+
+    //enabling the timer
     tim3.cr1.write(|w| w.cen().set_bit());
 
-    //moving the timers into the mutex
+    //moving the timer into the mutex
     cortex_m::interrupt::free(|cs| {
         MUTEX_TIM3
             .borrow(cs)
@@ -110,7 +112,7 @@ fn main() -> ! {
 #[interrupt]
 
 fn TIM3() {
-    //triggeres every 0.5s, blinks leds based on PLAYING and MY_COLOR
+    //triggeres every 1s, blinks leds based on PLAYING and MY_COLOR
 
     free(|cs| {
         // Obtain all Mutex protected resources
@@ -121,25 +123,24 @@ fn TIM3() {
             tim3.sr.write(|w| w.uif().clear_bit()); //clear pending interrupt bit
 
             let mut stack_prt = STACK_POINTER.borrow(cs).get();
-            let mut led_state: u32 = 0;
+            let mut led_state: u32;
+            let mut old_stack_prt = cortex_m::register::msp::read();
 
+            //getting the led_state off the stack
             unsafe {
                 asm!(
-                    "MRS {old_stack_prt}, MSP",
                     "MSR MSP, {stack_prt}",
                     "POP {{{led_state}}}",
                     "MRS {stack_prt}, MSP",
                     "MSR MSP, {old_stack_prt}",
                     stack_prt = inout(reg) stack_prt,
                     led_state = out(reg) led_state,
-                    old_stack_prt = out(reg) _,
+                    old_stack_prt = in(reg) old_stack_prt,
 
                 );
             }
 
-            STACK_POINTER.borrow(cs).set(stack_prt);
-
-            //led state stuff
+            //setting the led based on "led_state", updating led_state
             if led_state == 1 {
                 gpiod.odr.modify(|_, w| w.odr14().clear_bit());
                 led_state = 0;
@@ -148,19 +149,21 @@ fn TIM3() {
                 led_state = 1;
             }
 
+            //putting the correct led_state back on the stack
+            old_stack_prt = cortex_m::register::msp::read();
             unsafe {
                 asm!(
-                    "MRS {old_stack_prt}, MSP",
                     "MSR MSP, {stack_prt}",
                     "PUSH {{{led_state}}}",
                     "MRS {stack_prt}, MSP",
                     "MSR MSP, {old_stack_prt}",
                     led_state = in(reg) led_state,
-                    old_stack_prt = out(reg) _,
+                    old_stack_prt = in(reg) old_stack_prt,
                     stack_prt = in(reg) stack_prt,
 
                 );
             }
+            //updating the stack pointer
             STACK_POINTER.borrow(cs).set(stack_prt);
         }
     });

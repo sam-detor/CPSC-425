@@ -11,6 +11,7 @@ use cortex_m_rt::entry;
 use stm32f4::stm32f411::{self};
 
 use core::arch::asm;
+use core::borrow::Borrow;
 use core::cell::{Cell, RefCell};
 use core::ops::DerefMut;
 
@@ -25,116 +26,58 @@ static MUTEX_TIM3: Mutex<RefCell<Option<stm32f4::stm32f411::TIM3>>> =
 
 static BLUE_STACK_POINTER: Mutex<Cell<u32>> = Mutex::new(Cell::new(0x20000100));
 static RED_STACK_POINTER: Mutex<Cell<u32>> = Mutex::new(Cell::new(0x20000500));
+static BLUE_COUNTER: Mutex<Cell<u32>> = Mutex::new(Cell::new(0)); 
+static RED_COUNTER: Mutex<Cell<u32>> = Mutex::new(Cell::new(0));
 
 fn FlashBlue() { //PC: 0x80009b0
+    let mut led_state = 0;
     loop {
         free(|cs| {
             // Obtain all Mutex protected resources
             if let &mut Some(ref mut gpiod) = 
                 MUTEX_GPIOD.borrow(cs).borrow_mut().deref_mut()
             {
-                let mut stack_prt = BLUE_STACK_POINTER.borrow(cs).get();
-                let mut led_state: u32 = 0;
-
-                unsafe {
-                    asm!(
-                        "MRS {old_stack_prt}, MSP",
-                        "MSR MSP, {stack_prt}",
-                        "POP {{{led_state}}}",
-                        "MRS {stack_prt}, MSP",
-                        "MSR MSP, {old_stack_prt}",
-                        stack_prt = inout(reg) stack_prt,
-                        led_state = out(reg) led_state,
-                        old_stack_prt = out(reg) _,
-
-                    );
+                let counter = BLUE_COUNTER.borrow(cs).get();
+                if counter >= 100 { //100 milisec in a sec
+                    //led state stuff
+                    if led_state == 1 {
+                        gpiod.odr.modify(|_, w| w.odr15().clear_bit());
+                        led_state = 0;
+                    } else {
+                        gpiod.odr.modify(|_, w| w.odr15().set_bit());
+                        led_state = 1;
+                    }
+                    BLUE_COUNTER.borrow(cs).set(0);
                 }
-
-                BLUE_STACK_POINTER.borrow(cs).set(stack_prt);
-
-                //led state stuff
-                if led_state == 1 {
-                    gpiod.odr.modify(|_, w| w.odr15().clear_bit());
-                    led_state = 0;
-                } else {
-                    gpiod.odr.modify(|_, w| w.odr15().set_bit());
-                    led_state = 1;
-                }
-
-                unsafe {
-                    asm!(
-                        "MRS {old_stack_prt}, MSP",
-                        "MSR MSP, {stack_prt}",
-                        "PUSH {{{led_state}}}",
-                        "MRS {stack_prt}, MSP",
-                        "MSR MSP, {old_stack_prt}",
-                        led_state = in(reg) led_state,
-                        old_stack_prt = out(reg) _,
-                        stack_prt = in(reg) stack_prt,
-
-                    );
-                }
-                BLUE_STACK_POINTER.borrow(cs).set(stack_prt);
+               
             }
         });
-        
-        cortex_m::asm::delay(8000000);
     }
 }
 
 fn FlashRed() { //PC: 0x8000ba6
+    let mut led_state = 0;
     loop {
         free(|cs| {
             // Obtain all Mutex protected resources
             if let &mut Some(ref mut gpiod) = 
                 MUTEX_GPIOD.borrow(cs).borrow_mut().deref_mut()
             {
-                let mut stack_prt = RED_STACK_POINTER.borrow(cs).get();
-                let mut led_state: u32 = 0;
-
-                unsafe {
-                    asm!(
-                        "MRS {old_stack_prt}, MSP",
-                        "MSR MSP, {stack_prt}",
-                        "POP {{{led_state}}}",
-                        "MRS {stack_prt}, MSP",
-                        "MSR MSP, {old_stack_prt}",
-                        stack_prt = inout(reg) stack_prt,
-                        led_state = out(reg) led_state,
-                        old_stack_prt = out(reg) _,
-
-                    );
+                let counter = RED_COUNTER.borrow(cs).get();
+                if counter >= 100 { //100 milisec in a sec
+                    //led state stuff
+                    if led_state == 1 {
+                        gpiod.odr.modify(|_, w| w.odr14().clear_bit());
+                        led_state = 0;
+                    } else {
+                        gpiod.odr.modify(|_, w| w.odr14().set_bit());
+                        led_state = 1;
+                    }
+                    RED_COUNTER.borrow(cs).set(0);
                 }
-
-                RED_STACK_POINTER.borrow(cs).set(stack_prt);
-
-                //led state stuff
-                if led_state == 1 {
-                    gpiod.odr.modify(|_, w| w.odr14().clear_bit());
-                    led_state = 0;
-                } else {
-                    gpiod.odr.modify(|_, w| w.odr14().set_bit());
-                    led_state = 1;
-                }
-
-                unsafe {
-                    asm!(
-                        "MRS {old_stack_prt}, MSP",
-                        "MSR MSP, {stack_prt}",
-                        "PUSH {{{led_state}}}",
-                        "MRS {stack_prt}, MSP",
-                        "MSR MSP, {old_stack_prt}",
-                        led_state = in(reg) led_state,
-                        old_stack_prt = out(reg) _,
-                        stack_prt = in(reg) stack_prt,
-
-                    );
-                }
-                RED_STACK_POINTER.borrow(cs).set(stack_prt);
+               
             }
         });
-        
-        cortex_m::asm::delay(8000000);
     }
 }
 
@@ -172,7 +115,7 @@ fn main() -> ! {
     let gpiod = &stm32f4_peripherals.GPIOD;
     gpiod
         .moder
-        .write(|w| w.moder15().output().moder14().output().moder13().output());
+        .write(|w| w.moder15().output().moder14().output().moder13().output().moder12().output());
 
     cortex_m::interrupt::free(|cs| {
         MUTEX_GPIOD
@@ -183,7 +126,7 @@ fn main() -> ! {
     // 7. Enable EXTI7 Interrupt
     let mut nvic = cortexm_peripherals.NVIC;
     unsafe {
-        nvic.set_priority(Interrupt::TIM3, 2);
+        nvic.set_priority(Interrupt::TIM3, 1);
         cortex_m::peripheral::NVIC::unmask(Interrupt::TIM3);
     }
     cortex_m::peripheral::NVIC::unpend(Interrupt::TIM3);
@@ -191,14 +134,12 @@ fn main() -> ! {
     // Move shared peripherals into mutexes
     cortex_m::interrupt::free(|cs| {
         //set up stack
-        let mut led_state: u32 = 0x0;
         let mut blue_stack_prt: u32 = BLUE_STACK_POINTER.borrow(cs).get();
         let mut red_stack_prt: u32 = RED_STACK_POINTER.borrow(cs).get();
-        let blue_status = 1;
-        let red_status = 0;
-        let blue_pc = 0x80009b0;
-        let red_pc = 0x8000ba6;
-
+        let xpcr = 1 << 24;
+        let lr_exception_blue = FlashBlue() as u32;
+       
+        //set up blue stack
         unsafe {
             asm!(
                "MRS {old_stack_prt}, MSP",
@@ -223,6 +164,7 @@ fn main() -> ! {
                 red_pc= in(reg) red_pc,
             );
         }
+
         BLUE_STACK_POINTER.borrow(cs).set(blue_stack_prt);
         RED_STACK_POINTER.borrow(cs).set(red_stack_prt);
     });
@@ -236,13 +178,13 @@ fn main() -> ! {
             .replace(Some(stm32f4_peripherals.TIM3));
     });
 
-    //FlashBlue();
-    //FlashRed();
+    FlashBlue();
+    FlashRed();
     loop {
        
     }
 }
-
+//r0 - r3
 #[interrupt]
 
 fn TIM3() {
@@ -266,7 +208,7 @@ fn TIM3() {
             let mut red_led_state = 1;
             let mut red_status = 0;
             let mut red_pc = 0;
-    
+
             unsafe {
                 asm!(
                     //unwinding both stacks
@@ -293,7 +235,29 @@ fn TIM3() {
                     red_pc= out(reg) _,
                 );
             }
-            let mut pc = 0;
+        
+             let mut exit_pc: u32;
+            if red_status == 0 {
+
+                //blue_pc = pc;
+                blue_status = 0;
+                red_status = 1;
+                exit_pc = red_pc;
+                //gpiod.odr.modify(|_,w| w.odr13().set_bit());
+            }
+            else if blue_status == 0 {
+                //red_pc = pc;
+                red_status = 0;
+                blue_status = 1;
+                exit_pc = blue_pc;
+                //gpiod.odr.modify(|_,w| w.odr12().set_bit());
+            }
+            else {
+                exit_pc = blue_pc;
+                //gpiod.odr.modify(|_,w| w.odr14().set_bit());
+            }
+            let mut pc = 0; 
+           
             //finding PC
             unsafe {
                 asm!(
@@ -305,7 +269,7 @@ fn TIM3() {
                    "POP {{{tmp5}}}",
                    "POP {{{tmp6}}}",
                    "POP {{{pc}}}",
-                   "PUSH {{{pc}}}",
+                   "PUSH {{{exit_pc}}}",
                    "PUSH {{{tmp6}}}",
                    "PUSH {{{tmp5}}}",
                    "PUSH {{{tmp4}}}",
@@ -319,32 +283,24 @@ fn TIM3() {
                     tmp5 = out(reg) _,
                     tmp6 = out(reg) _,
                     pc = out(reg) pc,
+                    exit_pc = in(reg) exit_pc,
                 );
             }
 
-            let mut exit_pc: u32 = pc;
             if red_status == 0 {
 
-                blue_pc = pc;
-                blue_status = 0;
-                red_status = 1;
-                exit_pc = red_pc;
+               blue_pc = pc;
+                //gpiod.odr.modify(|_,w| w.odr13().set_bit());
             }
             else if blue_status == 0 {
                 red_pc = pc;
-                red_status = 0;
-                blue_status = 1;
-                exit_pc = blue_pc;
-
-            }
-            else {
-                gpiod.odr.modify(|_,w| w.odr13().set_bit());
+                //gpiod.odr.modify(|_,w| w.odr12().set_bit());
             }
 
-            //re-forming both stacks and exiting
+             
+             //re-forming both stacks and exiting
             unsafe {
                 asm!(
-                    //unwinding both stacks
                    "MRS {old_stack_prt}, MSP",
                    "MSR MSP, {blue_stack_prt}",
                    "PUSH {{{blue_pc}}}",
@@ -357,7 +313,6 @@ fn TIM3() {
                     "PUSH {{{red_led_state}}}",
                     "MRS {red_stack_prt}, MSP",
                     "MSR MSP, {old_stack_prt}",
-                    "MOV PC, {exit_pc}",
                     blue_stack_prt = inout(reg) blue_stack_prt,
                     red_stack_prt = inout(reg) red_stack_prt,
                     blue_led_state = in(reg) blue_led_state,
@@ -367,9 +322,9 @@ fn TIM3() {
                     red_status = in(reg) red_status,
                     blue_pc = in(reg) blue_pc,
                     red_pc= in(reg) red_pc,
-                    exit_pc = in(reg) exit_pc,
                 );
-            }
+            }  
+        
         }});
 }
 
