@@ -30,7 +30,7 @@ const STACK_BASE: u32 = 0x20000900;
 const STACK_MAX: u32 = 0x2001F700;
 const NUM_TASKS: usize = 4;
 
-static TASK_TIC_COUNTER: Mutex<RefCell<[u32; NUM_TASKS]>> =
+static TASK_TICK_COUNTER: Mutex<RefCell<[u32; NUM_TASKS]>> =
     Mutex::new(RefCell::new([0; NUM_TASKS]));
 static mut TASK_STACK_POINTERS: [u32; NUM_TASKS] = [0; NUM_TASKS];
 static TASK_RUNNING: Mutex<Cell<usize>> = Mutex::new(Cell::new(0));
@@ -206,15 +206,15 @@ fn TIM3() {
     static mut WHOSE_RUNNING: usize = 0;
     free(|cs| {
         // Obtain all Mutex protected resources
-        if let (&mut Some(ref mut tim3), &mut ref mut task_tic) = (
+        if let (&mut Some(ref mut tim3), &mut ref mut task_tick) = (
             MUTEX_TIM3.borrow(cs).borrow_mut().deref_mut(),
-            TASK_TIC_COUNTER.borrow(cs).borrow_mut().deref_mut(),
+            TASK_TICK_COUNTER.borrow(cs).borrow_mut().deref_mut(),
         ) {
             tim3.sr.write(|w| w.uif().clear_bit()); //clear pending interrupt bit
 
             //add 1 to all the task timers
             for i in 0..NUM_TASKS {
-                task_tic[i] += 1;
+                task_tick[i] += 1;
             }
 
             //update global variable which task is running
@@ -384,18 +384,18 @@ fn delay(delay_10ms: u32) {
     let mut task_id: usize = 0;
     free(|cs| {
         // Obtain all Mutex protected resources
-        if let &mut ref mut task_tic = TASK_TIC_COUNTER.borrow(cs).borrow_mut().deref_mut() {
+        if let &mut ref mut task_tick = TASK_TICK_COUNTER.borrow(cs).borrow_mut().deref_mut() {
             //zero the task counter
             task_id = TASK_RUNNING.borrow(cs).get() - 1;
-            task_tic[task_id] = 0;
+            task_tick[task_id] = 0;
         }
     });
 
     loop {
         free(|cs| {
             // Obtain all Mutex protected resources
-            if let &mut ref mut task_tic = TASK_TIC_COUNTER.borrow(cs).borrow_mut().deref_mut() {
-                if task_tic[task_id] >= delay_10ms {
+            if let &mut ref mut task_tick = TASK_TICK_COUNTER.borrow(cs).borrow_mut().deref_mut() {
+                if task_tick[task_id] >= delay_10ms {
                     end_loop = true;
                 }
             }
@@ -410,9 +410,9 @@ fn delay(delay_10ms: u32) {
 fn zero_task_time() {
     free(|cs| {
         // Obtain all Mutex protected resources
-        if let &mut ref mut task_tic = TASK_TIC_COUNTER.borrow(cs).borrow_mut().deref_mut() {
+        if let &mut ref mut task_tick = TASK_TICK_COUNTER.borrow(cs).borrow_mut().deref_mut() {
             //zero the task counter
-            task_tic[TASK_RUNNING.borrow(cs).get() - 1] = 0;
+            task_tick[TASK_RUNNING.borrow(cs).get() - 1] = 0;
         }
     });
 }
@@ -421,9 +421,9 @@ fn get_task_time() -> u32 {
     let mut task_time: u32 = 0;
     free(|cs| {
         // Obtain all Mutex protected resources
-        if let &mut ref mut task_tic = TASK_TIC_COUNTER.borrow(cs).borrow_mut().deref_mut() {
+        if let &mut ref mut task_tick = TASK_TICK_COUNTER.borrow(cs).borrow_mut().deref_mut() {
             //return the task time conter value
-            task_time = task_tic[TASK_RUNNING.borrow(cs).get() - 1];
+            task_time = task_tick[TASK_RUNNING.borrow(cs).get() - 1];
         }
     });
     return task_time;
