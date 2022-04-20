@@ -81,6 +81,7 @@ fn main() -> ! {
         let old_stack_prt = cortex_m::register::msp::read();
 
         //setting up the stack
+        
         unsafe {
             asm!(
                "MSR MSP, {stack_prt}",
