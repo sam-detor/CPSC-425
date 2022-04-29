@@ -1,0 +1,5 @@
+cargo:rustc-cfg=cortex_m
+cargo:rustc-cfg=armv7m
+cargo:rustc-link-search=/Users/samdetor/CPSC-425/CPSC-425/Lab_5/Part1/flash_blue/target/thumbv7em-none-eabi/debug/build/flash_blue-9926d2f975732881/out
+cargo:rerun-if-changed=build.rs
+cargo:rerun-if-changed=link.x.in

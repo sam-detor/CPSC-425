@@ -1,0 +1,3 @@
+cargo:rustc-link-search=native=/Users/samdetor/CPSC-425/CPSC-425/Lab_5/Part2/task_bins
+cargo:rustc-link-lib=static=flash_blue
+cargo:rustc-link-lib=static=flash_green
