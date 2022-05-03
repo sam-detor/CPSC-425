@@ -4,8 +4,6 @@ const GREEN: u32 = 1;
 //const RED: u32 = 3;
 //const BLUE: u32 = 4;
 use panic_halt as _;
-#[no_mangle]
-static task_stack_size: u32 = 2048;
 
 extern "C" {
     fn set_led(color: u32, state: bool);
@@ -29,7 +27,8 @@ pub fn start() {
     }
 
 }
+
 #[no_mangle]
-pub fn task_stack_size_getter() -> u32 {
+pub extern "C" fn task_stack_size_getter() -> u32 {
     return 2048;
 }

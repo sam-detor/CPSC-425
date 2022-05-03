@@ -30,7 +30,7 @@ pub fn start() {
 }
 
 #[no_mangle]
-pub fn task_stack_size_getter() -> u32 {
+pub extern "C" fn task_stack_size_getter() -> u32 {
     return 2048;
 }
 

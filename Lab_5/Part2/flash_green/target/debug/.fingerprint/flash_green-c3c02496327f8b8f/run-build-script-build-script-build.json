@@ -1,0 +1,1 @@
+{"rustc":3209735349914509037,"features":"","target":0,"profile":0,"path":0,"deps":[[2517595310728829749,"build_script_build",false,11874009376564023525]],"local":[{"RerunIfChanged":{"output":"debug/build/flash_green-c3c02496327f8b8f/output","paths":["build.rs","link.x.in"]}}],"rustflags":[],"metadata":0,"config":0,"compile_kind":0}

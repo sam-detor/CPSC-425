@@ -15,7 +15,6 @@ use cortex_m_rt::entry;
 use stm32f4::stm32f411::{self};
 
 use core::arch::asm;
-use core::borrow::Borrow;
 use core::cell::{Cell, RefCell};
 use core::ops::DerefMut;
 
@@ -28,10 +27,11 @@ static MUTEX_GPIOD: Mutex<RefCell<Option<stm32f4::stm32f411::GPIOD>>> =
 static MUTEX_TIM3: Mutex<RefCell<Option<stm32f4::stm32f411::TIM3>>> =
     Mutex::new(RefCell::new(None));
 
-//const STACK_BASE: u32 = 0x20000900;
+//Scheduler Constants
 const STACK_BASE: u32 = 0x2001F700;
 const MAX_TASKS: usize = 5; //4 user tasks, 1 idle task
 
+//LED constants
 const GREEN: u32 = 1;
 const ORANGE: u32 = 2;
 const RED: u32 = 3;
@@ -56,6 +56,8 @@ static TASKS_LOADED: Mutex<Cell<usize>> = Mutex::new(Cell::new(0));
 static TASK_AWAKE: Mutex<Cell<bool>> = Mutex::new(Cell::new(true));
 
 static mut TASK_POINTERS_ARRAY: [u32; MAX_TASKS] = [0;5];
+#[no_mangle]
+static default_stack_size: u32 = 0;
 
 
 #[no_mangle]
@@ -75,9 +77,11 @@ extern "C" {
     fn start3 ();
 
     fn task0_stack_size_getter () -> u32;
-    fn task1_stack_size_getter () -> u32;
+    //fn task1_stack_size_getter () -> u32;
     fn task2_stack_size_getter () -> u32;
     fn task3_stack_size_getter () -> u32;
+
+    static task1_stack_size: u32;
 }
 
 #[entry]
@@ -154,7 +158,7 @@ fn main() -> ! {
     unsafe {
         //task 1
         
-        let mut stack_sz = task0_stack_size_getter();
+        let mut stack_sz = task0_stack_size_getter(); //red
         if stack_sz != 0 {
             //gpiod.odr.modify(|_,w| w.odr12().set_bit());
             initialize_task(start0 as u32, stack_sz);
@@ -162,32 +166,28 @@ fn main() -> ! {
     
      
         //task 2
-        stack_sz = task1_stack_size_getter();
+        stack_sz = task1_stack_size; //blue
         if stack_sz != 0 {
             //gpiod.odr.modify(|_,w| w.odr13().set_bit());
             initialize_task(start1 as u32, stack_sz);
         }
     
-    
+       
         //task 3
-        stack_sz = task2_stack_size_getter();
+        stack_sz = task2_stack_size_getter(); //green
         if stack_sz != 0 {
             //gpiod.odr.modify(|_,w| w.odr14().set_bit());
             initialize_task(start2 as u32, stack_sz);
         }
-    }/*    
+         
         //task 4
         let stack_sz = task3_stack_size_getter();
         if stack_sz != 0 {
             //gpiod.odr.modify(|_,w| w.odr15().set_bit());
             initialize_task(start3 as u32, stack_sz);
         }
-    
     }
-   
     start_scheduler();
-    */
-
     loop {}
 }
 
@@ -196,18 +196,19 @@ fn TIM3() {
     //triggeres every 10ms and switches the running task
 
     static mut WHOSE_RUNNING: usize = 0;
-    static mut PAUSED_TASK: usize = 0;
-    let mut next_task: usize = 0;
+    static mut PAUSED_TASK: usize = 1;
+    let mut next_task: usize = 1;
     free(|cs| {
         // Obtain all Mutex protected resources
-        if let (&mut Some(ref mut tim3),&mut Some(ref mut task_info_array)) = 
-            (MUTEX_TIM3.borrow(cs).borrow_mut().deref_mut(), TASK_INFO_ARRAY.borrow(cs).borrow_mut().deref_mut())
+        if let (&mut Some(ref mut tim3),&mut Some(ref mut task_info_array), &mut Some(ref mut gpiod)) = 
+            (MUTEX_TIM3.borrow(cs).borrow_mut().deref_mut(), TASK_INFO_ARRAY.borrow(cs).borrow_mut().deref_mut(),  MUTEX_GPIOD.borrow(cs).borrow_mut().deref_mut())
          {
             tim3.sr.write(|w| w.uif().clear_bit()); //clear pending interrupt bit
             
             let num_tasks = TASKS_LOADED.borrow(cs).get();
             if num_tasks == 0
-            {
+            {   
+                //gpiod.odr.modify(|_,w| w.odr12().set_bit());
                 next_task = 0; //run idle task forever
             }
             else 
@@ -251,12 +252,16 @@ fn TIM3() {
                         if task_info_array[next_task].awake {
                             break;
                         }
-                        else if next_task == prev_task {
+                        else if next_task == *PAUSED_TASK  {
+                            //gpiod.odr.modify(|_,w| w.odr12().set_bit());
                             next_task = 0;
                             break;
                         }
                     }
                 }
+            }
+            if next_task == 0 {
+                //gpiod.odr.modify(|_,w| w.odr13().set_bit());
             }
             TASK_RUNNING.borrow(cs).set(next_task)
         }
@@ -338,6 +343,7 @@ fn initialize_task(func_ptr:u32, stack_size: u32) -> u8 {
     //creates stack pointer for each task and puts them in the TASK_STACK_POINTERS array
     let mut task_id: usize = 0;
     let mut stack_prt: u32 = 0;
+    let mut stack_start: u32 = 0;
     free(|cs| {
         if let &mut Some(ref mut task_info_array) = 
             TASK_INFO_ARRAY.borrow(cs).borrow_mut().deref_mut()
@@ -346,9 +352,12 @@ fn initialize_task(func_ptr:u32, stack_size: u32) -> u8 {
 
             if task_id == 1 {
             stack_prt = STACK_BASE;
+            stack_start = stack_prt;
             }
             else {
-                stack_prt = task_info_array[task_id].stack_min - 4; //a little space between each task
+                stack_prt = task_info_array[task_id - 1].stack_min - 4; //a little space between each task
+                //stack_prt = STACK_BASE - ((task_id as u32 - 1) * 2048);
+                stack_start = stack_prt;
             }
         }
     });
@@ -369,8 +378,8 @@ fn initialize_task(func_ptr:u32, stack_size: u32) -> u8 {
         if let &mut Some(ref mut task_info_array) = 
             TASK_INFO_ARRAY.borrow(cs).borrow_mut().deref_mut()
          {
-            TASKS_LOADED.borrow(cs).set(task_id); // add 1 to old value of tasks loaded
-            task_info_array[task_id].stack_min = stack_prt - stack_size;
+            TASKS_LOADED.borrow(cs).set(TASKS_LOADED.borrow(cs).get() + 1); // add 1 to old value of tasks loaded
+            task_info_array[task_id].stack_min = stack_start - stack_size;
             task_info_array[task_id].awake = true;
             task_info_array[task_id].loaded = true;
         }
@@ -379,9 +388,10 @@ fn initialize_task(func_ptr:u32, stack_size: u32) -> u8 {
     return 0;
 }
 
+#[no_mangle]
 /* This function creates a task stack given the adress of the task and the
 stack pointer */
-fn create_stack(sp: u32, func_ptr: u32) -> u32 {
+pub fn create_stack(sp: u32, func_ptr: u32) -> u32 {
     let mut my_sp = sp;
     let xpcr = 1 << 24; //24th bit is 1
     let dummy_val = 0;

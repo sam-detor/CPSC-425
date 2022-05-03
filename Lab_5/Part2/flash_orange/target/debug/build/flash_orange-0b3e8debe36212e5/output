@@ -1,0 +1,3 @@
+cargo:rustc-link-search=/Users/samdetor/CPSC-425/CPSC-425/Lab_5/Part2/flash_orange/target/debug/build/flash_orange-0b3e8debe36212e5/out
+cargo:rerun-if-changed=build.rs
+cargo:rerun-if-changed=link.x.in

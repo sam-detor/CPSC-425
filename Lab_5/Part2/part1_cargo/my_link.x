@@ -54,7 +54,7 @@ PROVIDE(start2 = default_start);
 PROVIDE(start3 = default_start);
 
 PROVIDE(task0_stack_size_getter = default_getter);
-PROVIDE(task1_stack_size_getter = default_getter);
+PROVIDE(task1_stack_size = default_stack_size);
 PROVIDE(task2_stack_size_getter = default_getter);
 PROVIDE(task3_stack_size_getter = default_getter);
 
