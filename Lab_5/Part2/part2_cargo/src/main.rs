@@ -3,6 +3,7 @@
 #![feature(naked_functions)]
 #![feature(asm_const)]
 #![feature(type_ascription)]
+#![feature(linkage)]
 
 extern crate cortex_m;
 extern crate cortex_m_rt as rt;
@@ -26,11 +27,12 @@ static MUTEX_GPIOD: Mutex<RefCell<Option<stm32f4::stm32f411::GPIOD>>> =
 static MUTEX_TIM3: Mutex<RefCell<Option<stm32f4::stm32f411::TIM3>>> =
     Mutex::new(RefCell::new(None));
 
-//Scheduler constants
+//Scheduler Constants
 const STACK_BASE: u32 = 0x2001F700;
+const STACK_SIZE_MAX: u32 = 4096;
 const MAX_TASKS: usize = 5; //4 user tasks, 1 idle task
 
-//LED color constants
+//LED constants
 const GREEN: u32 = 1;
 const ORANGE: u32 = 2;
 const RED: u32 = 3;
@@ -44,7 +46,7 @@ struct TaskInfo {
     sleep_timer: u32,
 }
 
-//Scheduler mutexes
+//Scheduler Mutexes
 static TASK_INFO_ARRAY: Mutex<RefCell<Option<[TaskInfo; MAX_TASKS]>>> =
     Mutex::new(RefCell::new(Some([
         TaskInfo {
@@ -87,13 +89,28 @@ static TASK_INFO_ARRAY: Mutex<RefCell<Option<[TaskInfo; MAX_TASKS]>>> =
 static TASK_RUNNING: Mutex<Cell<usize>> = Mutex::new(Cell::new(0));
 static TASKS_LOADED: Mutex<Cell<usize>> = Mutex::new(Cell::new(0));
 
-//scheduler mutable statics
+//Scheduler mutable statics
 static mut TASK_POINTERS_ARRAY: [u32; MAX_TASKS] = [0; 5];
 
-//declarations for the start and task_stack_size symbols
+//default values for stack size and start method
+#[no_mangle]
+static default_stack_size: u32 = 0;
+
+#[no_mangle]
+extern "C" fn default_start() {
+    loop {}
+}
+
 extern "C" {
-    fn start();
-    static task_stack_size: u32;
+    fn start0();
+    fn start1();
+    fn start2();
+    fn start3();
+
+    static task0_stack_size: u32;
+    static task1_stack_size: u32;
+    static task2_stack_size: u32;
+    static task3_stack_size: u32;
 }
 
 #[entry]
@@ -163,10 +180,30 @@ fn main() -> ! {
             .borrow(cs)
             .replace(Some(stm32f4_peripherals.TIM3));
     });
+
+    //loading tasks
     unsafe {
-        //initializing the flash blue task
-        initialize_task(start as u32, task_stack_size);
+        //task 1
+        if task0_stack_size != 0 {
+            initialize_task(start0 as u32, task0_stack_size);
+        }
+
+        //task 2
+        if task1_stack_size != 0 {
+            initialize_task(start1 as u32, task1_stack_size);
+        }
+
+        //task 3
+        if task2_stack_size != 0 {
+            initialize_task(start2 as u32, task2_stack_size);
+        }
+
+        //task 4
+        if task3_stack_size != 0 {
+            initialize_task(start3 as u32, task3_stack_size);
+        }
     }
+
     start_scheduler();
 
     loop {}
@@ -177,46 +214,81 @@ fn TIM3() {
     //triggeres every 10ms and switches the running task
 
     static mut WHOSE_RUNNING: usize = 0;
-    let mut next_task: usize = 0;
+    static mut PAUSED_TASK: usize = 1;
+    let mut next_task: usize = 1;
+
     free(|cs| {
         // Obtain all Mutex protected resources
-        if let (&mut Some(ref mut tim3), &mut Some(ref mut task_info_array)) = (
+        if let (
+            &mut Some(ref mut tim3),
+            &mut Some(ref mut task_info_array),
+        ) = (
             MUTEX_TIM3.borrow(cs).borrow_mut().deref_mut(),
             TASK_INFO_ARRAY.borrow(cs).borrow_mut().deref_mut(),
         ) {
             tim3.sr.write(|w| w.uif().clear_bit()); //clear pending interrupt bit
 
-            let num_tasks = TASKS_LOADED.borrow(cs).get(); //get the amount of loaded/running tasks
+            //gets the number of tasks loaded
+            let num_tasks = TASKS_LOADED.borrow(cs).get();
+            if num_tasks == 0 {
+                //if there are no user tasks, run the idle task forever
+                next_task = 0;
+            } else {
+                //add update all the task timers
+                for i in 1..=num_tasks {
+                    task_info_array[i].task_tic += 1;
+                }
 
-            //updated flash_blue task timer
-            for i in 1..=num_tasks {
-                task_info_array[i].task_tic += 1;
-            }
+                //check to see if any task needs to be woken up
+                for i in 1..=num_tasks {
+                    if !task_info_array[i].awake {
+                        if task_info_array[i].task_tic >= task_info_array[i].sleep_timer {
+                            task_info_array[i].awake = true;
+                        }
+                    }
+                }
 
-            //check to see if any task (ie flash blue) needs to be woken up
-            for i in 1..=num_tasks {
-                if !task_info_array[i].awake {
-                    if task_info_array[i].task_tic >= task_info_array[i].sleep_timer {
-                        task_info_array[i].awake = true;
+                //select the next task to be run
+                let prev_task = TASK_RUNNING.borrow(cs).get();
+                if prev_task == num_tasks {
+                    next_task = 1;
+                } else if prev_task == 0 {
+                    //if it was the idle task, it's assumed every other task was asleep
+                    next_task = *PAUSED_TASK; //scheduler should pick up where it left off in that case
+                } else {
+                    next_task = prev_task + 1;
+                }
+
+                //If "next_task" is not awake, try to find one that is
+                if !task_info_array[next_task].awake {
+                    *PAUSED_TASK = next_task;
+                    loop {
+                        if next_task == num_tasks {
+                            next_task = 1;
+                        } else {
+                            next_task += 1;
+                        }
+
+                        if task_info_array[next_task].awake {
+                            break;
+                        } else if next_task == *PAUSED_TASK {
+                            //if you have gone through all of the tasks and none are awake
+                            next_task = 0; //run the idle task
+                            break;
+                        }
                     }
                 }
             }
-
-            //update global variable which task is running
-            next_task = 1; //flash blue (task 1), should always be running unless it's asleep
-
-            if !task_info_array[next_task].awake {
-                next_task = 0; //if flash blue isn't awake, run the idle task
-            }
-            TASK_RUNNING.borrow(cs).set(next_task) //updated the running task
+            //update the TASK_RUNNING variable
+            TASK_RUNNING.borrow(cs).set(next_task)
         }
     });
 
     //switches the running task
     if *WHOSE_RUNNING != next_task {
-        //if a context switch is required
-        let temp_whoose_running = *WHOSE_RUNNING;
-        *WHOSE_RUNNING = next_task; //need to update *WHOOSE RUNNING before the context switch, so need its value in a temp var
+        //if a new task has to be run, switch the tasks
+        let temp_whoose_running = *WHOSE_RUNNING; //have the update *WHOSE_RUNNING before the context switch call, so need a temp
+        *WHOSE_RUNNING = next_task; //var to store the value
         unsafe {
             context_switch(
                 &TASK_POINTERS_ARRAY[temp_whoose_running],
@@ -260,21 +332,38 @@ pub unsafe extern "C" fn trampoline() {
     asm!("ldr lr, =0xfffffff9", "bx lr", options(noreturn),);
 }
 
-/* This function creates the stack (of size "stack_size") and initializes fields in the new task's TaskInfo struct
-for a given task. It takes the size of the new task stack and the address of the new task*/
+/* This function fills in all necessary fields in this new task's "TaskInfo" struct (ex.
+ marking the task as loaded and awake).
+It also creates a stack and puts this task's stack pointer into the TASK_POINTERS_ARRAY. */
 fn initialize_task(func_ptr: u32, stack_size: u32) -> u8 {
-    //since only flash blue will be loaded
-    let task_id: usize = 1;
+    let mut task_id: usize = 0;
+    let mut stack_prt: u32 = 0;
+    let mut stack_start: u32 = 0;
+    free(|cs| {
+        if let &mut Some(ref mut task_info_array) =
+            TASK_INFO_ARRAY.borrow(cs).borrow_mut().deref_mut()
+        {
+            //calculates this task's id
+            task_id = TASKS_LOADED.borrow(cs).get() + 1;
 
-    //since only loading 1 task
-    let mut stack_prt = STACK_BASE;
+            if task_id == 1 {
+                //if this is the first task loaded, make the stack_start the STACK BASE var
+                stack_prt = STACK_BASE;
+                stack_start = stack_prt;
+            } else {
+                //make the stack_min from the previous max the stack start (minue 4 for some space between tasks)
+                stack_prt = task_info_array[task_id - 1].stack_min - 4; //a little space between each task
+                stack_start = stack_prt;
+            }
+        }
+    });
 
-    //making sure stack size is 4 byte aligned
-    if stack_size % 4 != 0 {
+    //making sure stack_min will be 4 byte aligned and is under the max stack size allowed
+    if stack_size % 4 != 0 || stack_size > STACK_SIZE_MAX {
         return 1;
     }
 
-    //gets the stack pointer to the newly created stack and puts in the TASK_POINTER_ARRAY
+    //gets the stack pointer to the newly created stack and puts in the stack pointer array
     stack_prt = create_stack(stack_prt, func_ptr);
     unsafe {
         TASK_POINTERS_ARRAY[task_id] = stack_prt;
@@ -286,10 +375,9 @@ fn initialize_task(func_ptr: u32, stack_size: u32) -> u8 {
         {
             TASKS_LOADED
                 .borrow(cs)
-                .set(TASKS_LOADED.borrow(cs).get() + 1); //updating the TASKS_LOADED var
-
-            //initializing fields in the TaskInfo struct for this task
-            task_info_array[task_id].stack_min = stack_prt - stack_size;
+                .set(TASKS_LOADED.borrow(cs).get() + 1); // update the TASKS_LOADED var
+                                                         //initializing fields in the task info array
+            task_info_array[task_id].stack_min = stack_start - stack_size;
             task_info_array[task_id].awake = true;
             task_info_array[task_id].loaded = true;
         }
@@ -298,9 +386,10 @@ fn initialize_task(func_ptr: u32, stack_size: u32) -> u8 {
     return 0;
 }
 
-/* This function creates a task stack given the adress of the task and the
+#[no_mangle]
+/* This function creates a task stack given the address of the task and the
 stack pointer */
-fn create_stack(sp: u32, func_ptr: u32) -> u32 {
+pub fn create_stack(sp: u32, func_ptr: u32) -> u32 {
     let mut my_sp = sp;
     let xpcr = 1 << 24; //24th bit is 1
     let dummy_val = 0;
@@ -345,27 +434,26 @@ fn start_scheduler() {
 }
 
 #[no_mangle]
-//this function can be called by tasks to stop the scheduler from running the
-//task for a unit of time (in 10ms intervals)
+//this function can be called by user tasks. It sets the current task to not be
+//run for "delay_10ms" system ticks.
 fn sleep(delay_10ms: u32) {
     let mut task_id: usize = 0;
     let mut end_loop: bool = false;
-
     free(|cs| {
         if let &mut Some(ref mut task_info_array) =
             TASK_INFO_ARRAY.borrow(cs).borrow_mut().deref_mut()
         {
-            //get the task id
+            //get the current task_id
             task_id = TASK_RUNNING.borrow(cs).get();
 
-            //zero the task counter, set the sleep timer, and set the task to asleep
+            //zero the current task_tic timer, set the task as asleep, set the sleep timer value
             task_info_array[task_id].task_tic = 0;
             task_info_array[task_id].sleep_timer = delay_10ms;
             task_info_array[task_id].awake = false;
         }
     });
-
-    //this loop makes sure the function doesn't exit this function before it's woken up
+    //this loop prevents the task from exiting this function until the scheduler sets it
+    //back to awake.
     loop {
         free(|cs| {
             if let &mut Some(ref mut task_info_array) =
@@ -384,8 +472,7 @@ fn sleep(delay_10ms: u32) {
 }
 
 #[allow(dead_code)]
-//This function zeros the task_tic counter for the running process
-//this function is called by tasks as a way to interface with the kernel
+//This function zeros the task_tic counter for the running task
 fn zero_task_time() {
     free(|cs| {
         if let &mut Some(ref mut task_info_array) =
@@ -398,8 +485,7 @@ fn zero_task_time() {
 }
 
 #[allow(dead_code)]
-//This function returns the task_tic counter value for the running process
-//this function is called by tasks as a way to interface with the kernel
+//This function returns the task_tic counter value for the running task
 fn get_task_time() -> u32 {
     let mut task_time: u32 = 0;
     free(|cs| {
@@ -412,9 +498,9 @@ fn get_task_time() -> u32 {
     });
     return task_time;
 }
-
 #[no_mangle]
-//This function is called by tasks to set an LED to a certain color (GREEN, ORANGE, RED, or BLUE) and state (on or off)
+//this function can be called by task functions to either set or unset a given LED
+//based on the color codes defined in this file
 fn set_led(color: u32, state: bool) {
     free(|cs| {
         // Obtain all Mutex protected resources

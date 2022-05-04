@@ -8,6 +8,9 @@ const BLUE: u32 = 4;
 use panic_halt as _;
 
 #[no_mangle]
+//The kernel and the task have an agreement that each task needs to provide a
+//static variable of the tame "task_stack_size" that gives the stack size
+//(and it must be non-zero)
 static task_stack_size: u32 = 2048;
 
 //methods defined in the kernel source code for access to peripherals, task scheduling control
@@ -25,22 +28,13 @@ pub extern "C" fn start() {
     loop {
         //toggle the led value
         led_on = !led_on;
-      
+
         unsafe {
-                //set the led to the new value
-                set_led(BLUE, !led_on);
-                
-                //delay for 1 sec
-                sleep(100);
+            //set the led to the new value
+            set_led(BLUE, !led_on);
+
+            //delay for 1 sec
+            sleep(100);
         }
     }
-
 }
-
-//based on the agreement with the kernel, all tasks must have a method that
-//returns a non zero stack size, so this method
-#[no_mangle]
-pub extern "C" fn task_stack_size_getter() -> u32 {
-    return 2048;
-}
-

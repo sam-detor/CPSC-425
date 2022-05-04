@@ -11,12 +11,6 @@ burn:
 debug:
 	gdb -q target/thumbv7em-none-eabi/release/$(TARGET) --eval-command="target extended-remote :3333" \
 
-link:
-	gcc 
-	
-
-
-#debug:@$(DBG) -q --eval-command="target extended-remote :4242"
 
 
 	 

@@ -1,3 +1,0 @@
-cargo:rustc-link-search=/Users/samdetor/CPSC-425/CPSC-425/Lab_5/Part2/flash_green/target/debug/build/flash_green-c3c02496327f8b8f/out
-cargo:rerun-if-changed=build.rs
-cargo:rerun-if-changed=link.x.in
