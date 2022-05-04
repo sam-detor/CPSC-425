@@ -1,6 +1,6 @@
 fn main() {
     //search for libs in task_bins dir
-    println!("cargo:rustc-link-search=native=/Users/samdetor/CPSC-425/CPSC-425/Lab_5/Part2/task_bins");
+    println!("cargo:rustc-link-search=native=../task_bins");
 
     //link all 4 libs
     println!("cargo:rustc-link-lib=static=flash_blue");
