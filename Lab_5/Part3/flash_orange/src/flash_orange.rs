@@ -7,12 +7,6 @@ const ORANGE: u32 = 2;
 //const BLUE: u32 = 4;
 use panic_halt as _;
 
-#[no_mangle]
-//The kernel and the task have an agreement that each task needs to provide a
-//static variable of the tame "task_stack_size" that gives the stack size
-//(and it must be non-zero)
-static task_stack_size: u32 = 2048;
-
 //methods defined in the kernel source code for access to peripherals, task scheduling control
 extern "C" {
     fn set_led(color: u32, state: bool);

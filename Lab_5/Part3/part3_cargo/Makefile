@@ -15,10 +15,10 @@ debug:
 	gdb -q target/thumbv7em-none-eabi/release/$(TARGET) --eval-command="target extended-remote :3333" \
 
 prep_tasks: 
-	$(COPY) --redefine-sym start=start0 --redefine-sym task_stack_size=task0_stack_size $(MYDIR)/libflash_red.a 
-	$(COPY) --redefine-sym start=start1 --redefine-sym task_stack_size=task1_stack_size $(MYDIR)/libflash_blue.a
-	$(COPY) --redefine-sym start=start2 --redefine-sym task_stack_size=task2_stack_size $(MYDIR)/libflash_green.a
-	$(COPY) --redefine-sym start=start3 --redefine-sym task_stack_size=task3_stack_size $(MYDIR)/libflash_orange.a
+	$(COPY) --redefine-sym start=start0 $(MYDIR)/libflash_red.a 
+	$(COPY) --redefine-sym start=start1 $(MYDIR)/libflash_blue.a
+	$(COPY) --redefine-sym start=start2 $(MYDIR)/libflash_green.a
+	$(COPY) --redefine-sym start=start3 $(MYDIR)/libflash_orange.a
 
 
 	 
